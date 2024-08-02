@@ -15,7 +15,9 @@ public class LeaningTowerClientEvents {
     @SubscribeEvent
     public static void onClientComputeCameraAngles(ViewportEvent.ComputeCameraAngles event) {
         LeanDirection leanDirection = ClientLeaningData.leanDirection;
+        LeanDirection prevLeanDirection = ClientLeaningData.prevLeanDirection;
         int leanTickDelta = ClientLeaningData.leanTickDelta;
+        int stopLeanTickDelta = ClientLeaningData.stopLeanTickDelta;
         if (leanDirection != LeanDirection.NONE) {
             int duration = 20;
             int leanAngle = leanDirection == LeanDirection.LEFT ? -45 : 45;
@@ -23,13 +25,16 @@ public class LeaningTowerClientEvents {
             int angleIfNegative = Math.max(leanAngle, easeToFrom((int) event.getRoll(), leanAngle, duration, leanTickDelta));
             int angle = leanAngle > 0 ? angleIfPositive : angleIfNegative;
             event.setRoll(angle);
-        } else {
+        } else if (ClientLeaningData.isLeaning) {
             int duration = 20;
-            int rollAsInt = (int) event.getRoll();
-            int angle = easeToFrom(rollAsInt, 0, duration, leanTickDelta);
+            int rollAsInt = prevLeanDirection == LeanDirection.LEFT ? -45 : 45;
+            int angle = easeToFrom(rollAsInt, 0, duration, stopLeanTickDelta);
+            LeaningTower.LOGGER.info(String.valueOf(angle));
             event.setRoll(angle);
             if (angle == 0) {
                 ClientLeaningData.leanTickDelta = 0;
+                ClientLeaningData.stopLeanTickDelta = 0;
+                ClientLeaningData.setLeaning(false);
             }
         }
     }
