@@ -14,7 +14,7 @@ public class LocalPlayerMixin {
     @Inject(method = "move", at = @At("HEAD"), cancellable = true)
     private void leaningtower$move(MoverType pType, Vec3 pPos, CallbackInfo ci) {
         if (pType == MoverType.SELF) {
-            if (ClientLeaningData.incrementalLeanAngle != 0) {
+            if (ClientLeaningData.currentLeanAngle != 0) {
                 ci.cancel();
             }
         }
