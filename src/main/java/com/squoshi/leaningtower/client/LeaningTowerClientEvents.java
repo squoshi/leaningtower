@@ -19,15 +19,15 @@ public class LeaningTowerClientEvents {
         int leanTickDelta = ClientLeaningData.leanTickDelta;
         int stopLeanTickDelta = ClientLeaningData.stopLeanTickDelta;
         if (leanDirection != LeanDirection.NONE) {
-            int duration = 20;
-            int leanAngle = leanDirection == LeanDirection.LEFT ? -45 : 45;
+            int duration = 40;
+            int leanAngle = leanDirection == LeanDirection.LEFT ? -20 : 20;
             int angleIfPositive = Math.min(leanAngle, easeToFrom((int) event.getRoll(), leanAngle, duration, leanTickDelta));
             int angleIfNegative = Math.max(leanAngle, easeToFrom((int) event.getRoll(), leanAngle, duration, leanTickDelta));
             int angle = leanAngle > 0 ? angleIfPositive : angleIfNegative;
             event.setRoll(angle);
         } else if (ClientLeaningData.isLeaning) {
-            int duration = 20;
-            int rollAsInt = prevLeanDirection == LeanDirection.LEFT ? -45 : 45;
+            int duration = 40;
+            int rollAsInt = prevLeanDirection == LeanDirection.LEFT ? -20 : 20;
             int angle = easeToFrom(rollAsInt, 0, duration, stopLeanTickDelta);
             LeaningTower.LOGGER.info(String.valueOf(angle));
             event.setRoll(angle);
