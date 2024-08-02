@@ -1,7 +1,6 @@
 package com.squoshi.leaningtower.client;
 
 import com.squoshi.leaningtower.LeanDirection;
-import com.squoshi.leaningtower.LeaningTower;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.api.distmarker.OnlyIn;
 import net.minecraftforge.client.event.ViewportEvent;
@@ -18,28 +17,24 @@ public class LeaningTowerClientEvents {
         LeanDirection prevLeanDirection = ClientLeaningData.prevLeanDirection;
         int leanTickDelta = ClientLeaningData.leanTickDelta;
         int stopLeanTickDelta = ClientLeaningData.stopLeanTickDelta;
-        int leanAngle = ClientLeaningData.getIncrementalLeanAngle();
-
-        LeaningTower.LOGGER.info("Current Lean Angle: " + leanAngle);
-        LeaningTower.LOGGER.info("Current Lean Direction: " + leanDirection);
+        float leanAngle = ClientLeaningData.getIncrementalLeanAngle();
 
         if (leanDirection != LeanDirection.NONE || ClientLeaningData.isHoldingAlt) { // Maintain angle if holding Alt
             int duration = 40;
-            int angleIfPositive = Math.min(leanAngle, easeToFrom((int) event.getRoll(), leanAngle, duration, leanTickDelta));
-            int angleIfNegative = Math.max(leanAngle, easeToFrom((int) event.getRoll(), leanAngle, duration, leanTickDelta));
-            int angle = leanAngle > 0 ? angleIfPositive : angleIfNegative;
+            float angleIfPositive = Math.min(leanAngle, easeToFrom((float) event.getRoll(), leanAngle, duration, leanTickDelta));
+            float angleIfNegative = Math.max(leanAngle, easeToFrom((float) event.getRoll(), leanAngle, duration, leanTickDelta));
+            float angle = leanAngle > 0 ? angleIfPositive : angleIfNegative;
             event.setRoll(angle);
         } else if (ClientLeaningData.isLeaning) {
             int duration = 40;
-            int rollAsInt = prevLeanDirection == LeanDirection.LEFT ? -20 : 20;
-            int angle = easeToFrom(rollAsInt, 0, duration, stopLeanTickDelta);
-            LeaningTower.LOGGER.info("Returning to center, angle: " + angle);
+            float rollAsFloat = prevLeanDirection == LeanDirection.LEFT ? -20 : 20;
+            float angle = easeToFrom(rollAsFloat, 0, duration, stopLeanTickDelta);
             event.setRoll(angle);
             if (angle == 0) {
                 ClientLeaningData.leanTickDelta = 0;
                 ClientLeaningData.stopLeanTickDelta = 0;
                 ClientLeaningData.setLeaning(false);
-                ClientLeaningData.incrementalLeanAngle = 0; // Reset incremental angle when not leaning
+                ClientLeaningData.targetLeanAngle = 0; // Reset target angle when not leaning
             }
         }
     }
@@ -60,30 +55,25 @@ public class LeaningTowerClientEvents {
             return;
         }
         if (ClientLeaningData.isHoldingAlt) {
-//            LeaningTower.LOGGER.info("Left Alt is down");
             if (LeaningTowerKeyMappings.incrementLeft.isDown()) {
-//                LeaningTower.LOGGER.info("Increment left is down");
                 ClientLeaningData.incrementLean(LeanDirection.LEFT);
             } else if (LeaningTowerKeyMappings.incrementRight.isDown()) {
-//                LeaningTower.LOGGER.info("Increment right is down");
                 ClientLeaningData.incrementLean(LeanDirection.RIGHT);
             }
         } else {
             if (LeaningTowerKeyMappings.leanLeft.isDown()) {
-//                LeaningTower.LOGGER.info("Lean left is down");
                 ClientLeaningData.setLeanDirection(LeanDirection.LEFT);
-                ClientLeaningData.incrementalLeanAngle = -20; // Ensure lean is set to -20 for Q
+                ClientLeaningData.targetLeanAngle = -20; // Ensure lean is set to -20 for Q
             } else if (LeaningTowerKeyMappings.leanRight.isDown()) {
-//                LeaningTower.LOGGER.info("Lean right is down");
                 ClientLeaningData.setLeanDirection(LeanDirection.RIGHT);
-                ClientLeaningData.incrementalLeanAngle = 20; // Ensure lean is set to 20 for E
+                ClientLeaningData.targetLeanAngle = 20; // Ensure lean is set to 20 for E
             } else {
                 ClientLeaningData.setLeanDirection(LeanDirection.NONE);
             }
         }
     }
 
-    private static int easeToFrom(int from, int to, int duration, int tickDelta) {
+    private static float easeToFrom(float from, float to, int duration, int tickDelta) {
         if (tickDelta >= duration) {
             return to;
         }

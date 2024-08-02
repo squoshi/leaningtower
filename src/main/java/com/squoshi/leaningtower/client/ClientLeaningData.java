@@ -11,7 +11,8 @@ public class ClientLeaningData {
     public static boolean isLeaning;
     public static int leanTickDelta = 0;
     public static int stopLeanTickDelta = 0;
-    public static int incrementalLeanAngle = 0;
+    public static float currentLeanAngle = 0; // Current angle for smooth interpolation
+    public static float targetLeanAngle = 0;  // Target angle for smooth interpolation
     public static boolean isHoldingAlt = false;
 
     public static void setLeaning(boolean leaning) {
@@ -31,11 +32,11 @@ public class ClientLeaningData {
     }
 
     public static void incrementLean(LeanDirection direction) {
-        int maxAngle = isHoldingAlt ? 45 : 20; // Max angle is 45 if holding Alt, otherwise 20
+        int maxAngle = isHoldingAlt ? 35 : 20; // Max angle is 45 if holding Alt, otherwise 20
         if (direction == LeanDirection.LEFT) {
-            incrementalLeanAngle = Math.max(incrementalLeanAngle - 5, -maxAngle);
+            targetLeanAngle = Math.max(targetLeanAngle - 5, -maxAngle);
         } else if (direction == LeanDirection.RIGHT) {
-            incrementalLeanAngle = Math.min(incrementalLeanAngle + 5, maxAngle);
+            targetLeanAngle = Math.min(targetLeanAngle + 5, maxAngle);
         }
         setLeanDirection(direction); // Ensure lean direction is updated
     }
@@ -46,9 +47,15 @@ public class ClientLeaningData {
         } else if (ClientLeaningData.isLeaning) {
             ClientLeaningData.stopLeanTickDelta++;
         }
+        smoothUpdate(); // Update current angle smoothly towards the target angle
     }
 
-    public static int getIncrementalLeanAngle() {
-        return incrementalLeanAngle;
+    public static float getIncrementalLeanAngle() {
+        return currentLeanAngle;
+    }
+
+    private static void smoothUpdate() {
+        float smoothingFactor = 0.1f; // Adjust this value for smoother transitions (lower value means smoother transition)
+        currentLeanAngle += (targetLeanAngle - currentLeanAngle) * smoothingFactor;
     }
 }
