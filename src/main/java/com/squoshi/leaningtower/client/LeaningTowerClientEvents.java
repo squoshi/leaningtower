@@ -18,9 +18,13 @@ public class LeaningTowerClientEvents {
         LeanDirection prevLeanDirection = ClientLeaningData.prevLeanDirection;
         int leanTickDelta = ClientLeaningData.leanTickDelta;
         int stopLeanTickDelta = ClientLeaningData.stopLeanTickDelta;
+        int leanAngle = ClientLeaningData.getIncrementalLeanAngle();
+
+//        LeaningTower.LOGGER.info("Current Lean Angle: " + leanAngle);
+//        LeaningTower.LOGGER.info("Current Lean Direction: " + leanDirection);
+
         if (leanDirection != LeanDirection.NONE) {
             int duration = 40;
-            int leanAngle = leanDirection == LeanDirection.LEFT ? -20 : 20;
             int angleIfPositive = Math.min(leanAngle, easeToFrom((int) event.getRoll(), leanAngle, duration, leanTickDelta));
             int angleIfNegative = Math.max(leanAngle, easeToFrom((int) event.getRoll(), leanAngle, duration, leanTickDelta));
             int angle = leanAngle > 0 ? angleIfPositive : angleIfNegative;
@@ -29,12 +33,13 @@ public class LeaningTowerClientEvents {
             int duration = 40;
             int rollAsInt = prevLeanDirection == LeanDirection.LEFT ? -20 : 20;
             int angle = easeToFrom(rollAsInt, 0, duration, stopLeanTickDelta);
-            LeaningTower.LOGGER.info(String.valueOf(angle));
+//            LeaningTower.LOGGER.info("Returning to center, angle: " + angle);
             event.setRoll(angle);
             if (angle == 0) {
                 ClientLeaningData.leanTickDelta = 0;
                 ClientLeaningData.stopLeanTickDelta = 0;
                 ClientLeaningData.setLeaning(false);
+                ClientLeaningData.incrementalLeanAngle = 0; // Reset incremental angle when not leaning
             }
         }
     }
@@ -53,12 +58,29 @@ public class LeaningTowerClientEvents {
             ClientLeaningData.setLeanDirection(LeanDirection.NONE);
             return;
         }
-        if (LeaningTowerKeyMappings.leanLeft.isDown()) {
-            ClientLeaningData.setLeanDirection(LeanDirection.LEFT);
-        } else if (LeaningTowerKeyMappings.leanRight.isDown()) {
-            ClientLeaningData.setLeanDirection(LeanDirection.RIGHT);
+        if (LeaningTowerKeyMappings.leftAlt.isDown()) {
+//            LeaningTower.LOGGER.info("Left Alt is down");
+            if (LeaningTowerKeyMappings.incrementLeft.isDown()) {
+//                LeaningTower.LOGGER.info("Increment left is down");
+                ClientLeaningData.incrementLean(LeanDirection.LEFT);
+            } else if (LeaningTowerKeyMappings.incrementRight.isDown()) {
+//                LeaningTower.LOGGER.info("Increment right is down");
+                ClientLeaningData.incrementLean(LeanDirection.RIGHT);
+            } else {
+                ClientLeaningData.setLeanDirection(LeanDirection.NONE);
+            }
         } else {
-            ClientLeaningData.setLeanDirection(LeanDirection.NONE);
+            if (LeaningTowerKeyMappings.leanLeft.isDown()) {
+//                LeaningTower.LOGGER.info("Lean left is down");
+                ClientLeaningData.setLeanDirection(LeanDirection.LEFT);
+                ClientLeaningData.incrementalLeanAngle = -20; // Ensure lean is set to -20 for Q
+            } else if (LeaningTowerKeyMappings.leanRight.isDown()) {
+//                LeaningTower.LOGGER.info("Lean right is down");
+                ClientLeaningData.setLeanDirection(LeanDirection.RIGHT);
+                ClientLeaningData.incrementalLeanAngle = 20; // Ensure lean is set to 20 for E
+            } else {
+                ClientLeaningData.setLeanDirection(LeanDirection.NONE);
+            }
         }
     }
 
