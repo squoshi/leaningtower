@@ -20,10 +20,10 @@ public class LeaningTowerClientEvents {
         int stopLeanTickDelta = ClientLeaningData.stopLeanTickDelta;
         int leanAngle = ClientLeaningData.getIncrementalLeanAngle();
 
-//        LeaningTower.LOGGER.info("Current Lean Angle: " + leanAngle);
-//        LeaningTower.LOGGER.info("Current Lean Direction: " + leanDirection);
+        LeaningTower.LOGGER.info("Current Lean Angle: " + leanAngle);
+        LeaningTower.LOGGER.info("Current Lean Direction: " + leanDirection);
 
-        if (leanDirection != LeanDirection.NONE) {
+        if (leanDirection != LeanDirection.NONE || ClientLeaningData.isHoldingAlt) { // Maintain angle if holding Alt
             int duration = 40;
             int angleIfPositive = Math.min(leanAngle, easeToFrom((int) event.getRoll(), leanAngle, duration, leanTickDelta));
             int angleIfNegative = Math.max(leanAngle, easeToFrom((int) event.getRoll(), leanAngle, duration, leanTickDelta));
@@ -33,7 +33,7 @@ public class LeaningTowerClientEvents {
             int duration = 40;
             int rollAsInt = prevLeanDirection == LeanDirection.LEFT ? -20 : 20;
             int angle = easeToFrom(rollAsInt, 0, duration, stopLeanTickDelta);
-//            LeaningTower.LOGGER.info("Returning to center, angle: " + angle);
+            LeaningTower.LOGGER.info("Returning to center, angle: " + angle);
             event.setRoll(angle);
             if (angle == 0) {
                 ClientLeaningData.leanTickDelta = 0;
@@ -54,11 +54,12 @@ public class LeaningTowerClientEvents {
         if (event.phase == TickEvent.Phase.END) {
             return;
         }
+        ClientLeaningData.isHoldingAlt = LeaningTowerKeyMappings.leftAlt.isDown(); // Track if Alt is held
         if (LeaningTowerKeyMappings.leanLeft.isDown() && LeaningTowerKeyMappings.leanRight.isDown()) {
             ClientLeaningData.setLeanDirection(LeanDirection.NONE);
             return;
         }
-        if (LeaningTowerKeyMappings.leftAlt.isDown()) {
+        if (ClientLeaningData.isHoldingAlt) {
 //            LeaningTower.LOGGER.info("Left Alt is down");
             if (LeaningTowerKeyMappings.incrementLeft.isDown()) {
 //                LeaningTower.LOGGER.info("Increment left is down");
@@ -66,8 +67,6 @@ public class LeaningTowerClientEvents {
             } else if (LeaningTowerKeyMappings.incrementRight.isDown()) {
 //                LeaningTower.LOGGER.info("Increment right is down");
                 ClientLeaningData.incrementLean(LeanDirection.RIGHT);
-            } else {
-                ClientLeaningData.setLeanDirection(LeanDirection.NONE);
             }
         } else {
             if (LeaningTowerKeyMappings.leanLeft.isDown()) {
