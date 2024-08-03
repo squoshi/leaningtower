@@ -32,8 +32,8 @@ public class LocalPlayerMixin {
             }
 
             // Handle leaning with Q and E keys
-            if (ClientLeaningData.leanDirection != LeanDirection.NONE) {
-                if (!isLeaning || currentLeanDirection != ClientLeaningData.leanDirection) {
+            if (ClientLeaningData.leanDirection!= LeanDirection.NONE) {
+                if (!isLeaning || currentLeanDirection!= ClientLeaningData.leanDirection) {
                     originalPosition = player.position(); // Store the original position
                     isLeaning = true; // Set the flag to prevent continuous movement
                     movementTicks = 0; // Reset the movement counter
@@ -57,11 +57,25 @@ public class LocalPlayerMixin {
                 }
 
             } else if (isLeaning) {
-                // Reset the position when the leaning key is released
-                player.setPos(originalPosition.x, player.getY(), originalPosition.z); // Reset to the original position
-                isLeaning = false; // Reset the flag when the keys are released
-                movementTicks = 0; // Reset movement ticks
-                currentLeanDirection = LeanDirection.NONE;
+                // Move back to the original position when the leaning key is released
+                if (movementTicks > 0) {
+                    double incrementalOffset = TOTAL_OFFSET / TICKS_TO_MOVE;
+                    Vec3 direction = player.getLookAngle().yRot((float) Math.PI / 2); // Get the perpendicular direction
+
+                    // Move back to the original position
+                    if (currentLeanDirection == LeanDirection.LEFT) {
+                        player.setPos(player.getX() - direction.x * incrementalOffset, player.getY(), player.getZ() - direction.z * incrementalOffset);
+                    } else if (currentLeanDirection == LeanDirection.RIGHT) {
+                        player.setPos(player.getX() + direction.x * incrementalOffset, player.getY(), player.getZ() + direction.z * incrementalOffset);
+                    }
+
+                    // Decrement the tick counter
+                    movementTicks--;
+                } else {
+                    isLeaning = false; // Reset the flag when the keys are released
+                    movementTicks = 0; // Reset movement ticks
+                    currentLeanDirection = LeanDirection.NONE;
+                }
             }
         }
     }
