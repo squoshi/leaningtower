@@ -27,7 +27,7 @@ public class LeaningTowerClientEvents {
             event.setRoll(angle);
         } else if (ClientLeaningData.isLeaning) {
             int duration = 40;
-            float rollAsFloat = prevLeanDirection == LeanDirection.LEFT ? -20 : 20;
+            float rollAsFloat = prevLeanDirection == LeanDirection.LEFT ? -25 : 25;
             float angle = easeToFrom(rollAsFloat, 0, duration, stopLeanTickDelta);
             event.setRoll(angle);
             if (angle == 0) {
@@ -63,10 +63,10 @@ public class LeaningTowerClientEvents {
         } else {
             if (LeaningTowerKeyMappings.leanLeft.isDown()) {
                 ClientLeaningData.setLeanDirection(LeanDirection.LEFT);
-                ClientLeaningData.targetLeanAngle = -20; // Ensure lean is set to -20 for Q
+                ClientLeaningData.targetLeanAngle = -25; // Ensure lean is set to -20 for Q
             } else if (LeaningTowerKeyMappings.leanRight.isDown()) {
                 ClientLeaningData.setLeanDirection(LeanDirection.RIGHT);
-                ClientLeaningData.targetLeanAngle = 20; // Ensure lean is set to 20 for E
+                ClientLeaningData.targetLeanAngle = 25; // Ensure lean is set to 20 for E
             } else {
                 ClientLeaningData.setLeanDirection(LeanDirection.NONE);
             }

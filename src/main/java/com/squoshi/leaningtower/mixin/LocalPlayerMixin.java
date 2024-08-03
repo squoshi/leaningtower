@@ -1,6 +1,7 @@
 package com.squoshi.leaningtower.mixin;
 
 import com.squoshi.leaningtower.client.ClientLeaningData;
+import com.squoshi.leaningtower.client.LeaningTowerKeyMappings;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.world.entity.MoverType;
 import net.minecraft.world.phys.Vec3;
@@ -14,7 +15,7 @@ public class LocalPlayerMixin {
     @Inject(method = "move", at = @At("HEAD"), cancellable = true)
     private void leaningtower$move(MoverType pType, Vec3 pPos, CallbackInfo ci) {
         if (pType == MoverType.SELF) {
-            if (ClientLeaningData.incrementalLeanAngle != 0) {
+            if (LeaningTowerKeyMappings.leftAlt.isDown()) {
                 ci.cancel();
             }
         }
