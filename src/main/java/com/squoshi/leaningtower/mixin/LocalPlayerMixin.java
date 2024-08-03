@@ -33,21 +33,9 @@ public class LocalPlayerMixin {
                 return;
             }
 
-            // Continuous check while walking and leaning
-            if (ClientLeaningData.leanDirection != LeanDirection.NONE) {
-                Vec3 direction = player.getLookAngle().yRot((float) Math.PI / 2); // Get the perpendicular direction
-                Vec3 targetPos = player.position();
-                if (ClientLeaningData.leanDirection == LeanDirection.LEFT) {
-                    targetPos = targetPos.add(direction.x * 0.1, 0, direction.z * 0.1);
-                } else if (ClientLeaningData.leanDirection == LeanDirection.RIGHT) {
-                    targetPos = targetPos.add(-direction.x * 0.1, 0, -direction.z * 0.1);
-                }
-
-                // Check if there's a block below the player or the target position
-                if (!isBlockBelow(player, player.position()) || !isBlockBelow(player, targetPos)) {
-                    ci.cancel();
-                    return;
-                }
+            // Check if the player is sprinting or jumping
+            if (player.isSprinting() || player.input.jumping) {
+                ClientLeaningData.stopLeaning();
             }
 
             // Handle leaning with Q and E keys
@@ -69,12 +57,13 @@ public class LocalPlayerMixin {
 
                     // Check if there's a block below the target position
                     if (!isBlockBelow(player, targetPos)) {
+                        smoothCorrectPosition(player, currentLeanDirection);
                         ci.cancel();
                         return;
+                    } else {
+                        player.setPos(targetPos.x, targetPos.y, targetPos.z);
+                        movementTicks++;
                     }
-
-                    player.setPos(targetPos.x, targetPos.y, targetPos.z);
-                    movementTicks++;
                 }
             } else if (isLeaning) {
                 // Move back on release
@@ -90,16 +79,26 @@ public class LocalPlayerMixin {
 
                     // Check if there's a block below the target position
                     if (!isBlockBelow(player, targetPos)) {
+                        smoothCorrectPosition(player, currentLeanDirection);
                         ci.cancel();
                         return;
+                    } else {
+                        player.setPos(targetPos.x, targetPos.y, targetPos.z);
+                        movementTicks--;
                     }
-
-                    player.setPos(targetPos.x, targetPos.y, targetPos.z);
-                    movementTicks--;
                 } else {
                     isLeaning = false;
                     movementTicks = 0;
                     currentLeanDirection = LeanDirection.NONE;
+                }
+            }
+
+            // Additional continuous check during normal movement only if leaning and not jumping
+            if (isLeaning && !player.input.jumping) {
+                Vec3 futurePos = player.position().add(pPos);
+                if (!isBlockBelow(player, futurePos)) {
+                    smoothCorrectPosition(player, currentLeanDirection);
+                    ci.cancel();
                 }
             }
         }
@@ -125,11 +124,66 @@ public class LocalPlayerMixin {
                     (int) Math.floor(checkPoint.z)
             );
             BlockState stateBelow = level.getBlockState(blockPos);
+
             if (!stateBelow.isAir()) {
                 return true; // If any point is supported, it's safe to move
             }
         }
 
         return false; // No solid ground found at the required positions
+    }
+
+    private Vec3 findSupportedPosition(LocalPlayer player) {
+        Vec3 position = player.position();
+        double yOffset = -0.1; // Check slightly below the player's feet
+        Level level = player.level();
+
+        // Check current position
+        BlockPos blockPos = new BlockPos(
+                (int) Math.floor(position.x),
+                (int) Math.floor(position.y - 1),
+                (int) Math.floor(position.z)
+        );
+        if (!level.getBlockState(blockPos).isAir()) {
+            return position;
+        }
+
+        // Check slightly adjusted positions to find support
+        Vec3[] offsets = {
+                new Vec3(0.1, 0, 0),
+                new Vec3(-0.1, 0, 0),
+                new Vec3(0, 0, 0.1),
+                new Vec3(0, 0, -0.1),
+                new Vec3(0.1, 0, 0.1),
+                new Vec3(-0.1, 0, -0.1),
+                new Vec3(0.1, 0, -0.1),
+                new Vec3(-0.1, 0, 0.1)
+        };
+
+        for (Vec3 offset : offsets) {
+            Vec3 checkPos = position.add(offset);
+            BlockPos checkBlockPos = new BlockPos(
+                    (int) Math.floor(checkPos.x),
+                    (int) Math.floor(position.y - 1),
+                    (int) Math.floor(checkPos.z)
+            );
+            if (!level.getBlockState(checkBlockPos).isAir()) {
+                return checkPos;
+            }
+        }
+
+        return null; // No supported position found
+    }
+
+    private void smoothCorrectPosition(LocalPlayer player, LeanDirection leanDirection) {
+        Vec3 direction = player.getLookAngle().yRot((float) Math.PI / 2); // Get the perpendicular direction
+        Vec3 currentPos = player.position();
+        double correctionFactor = 0.05; // Smaller correction factor for smoother adjustment
+
+        if (leanDirection == LeanDirection.LEFT) {
+            player.setPos(currentPos.x - direction.x * correctionFactor, currentPos.y, currentPos.z - direction.z * correctionFactor);
+        } else if (leanDirection == LeanDirection.RIGHT) {
+            player.setPos(currentPos.x + direction.x * correctionFactor, currentPos.y, currentPos.z + direction.z * correctionFactor);
+        }
     }
 }

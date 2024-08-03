@@ -66,4 +66,13 @@ public class ClientLeaningData {
             currentLeanAngle = Math.max(currentLeanAngle - smoothingFactor * Math.abs(targetLeanAngle - currentLeanAngle), targetLeanAngle);
         }
     }
+
+    public static void stopLeaning() {
+        leanDirection = LeanDirection.NONE;
+        isLeaning = false;
+        leanTickDelta = 0;
+        stopLeanTickDelta = 0;
+        currentLeanAngle = 0;
+        targetLeanAngle = 0;
+    }
 }

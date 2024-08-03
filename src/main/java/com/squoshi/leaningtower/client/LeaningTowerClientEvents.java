@@ -2,13 +2,14 @@ package com.squoshi.leaningtower.client;
 
 import com.squoshi.leaningtower.LeanDirection;
 import net.minecraft.client.CameraType;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.player.LocalPlayer;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.api.distmarker.OnlyIn;
 import net.minecraftforge.client.event.ViewportEvent;
 import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
-import net.minecraft.client.Minecraft;
 
 @OnlyIn(Dist.CLIENT)
 @Mod.EventBusSubscriber(bus = Mod.EventBusSubscriber.Bus.FORGE, value = Dist.CLIENT)
@@ -76,6 +77,14 @@ public class LeaningTowerClientEvents {
                 ClientLeaningData.targetLeanAngle = 20; // Ensure lean is set to 20 for E unless we agreed upon changing it
             } else {
                 ClientLeaningData.setLeanDirection(LeanDirection.NONE);
+            }
+        }
+
+        // Stop leaning if sprinting or jumping
+        LocalPlayer player = Minecraft.getInstance().player;
+        if (player != null) {
+            if (player.isSprinting() || player.input.jumping) {
+                ClientLeaningData.stopLeaning();
             }
         }
     }
