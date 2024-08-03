@@ -1,8 +1,7 @@
 {
-  "key.categories.leaningtower": "Leaning Tower Controls",
   "key.leaningtower.lean_left": "Lean Left",
   "key.leaningtower.lean_right": "Lean Right",
-  "key.leaningtower.left_alt": "Left Alt",
+  "key.leaningtower.left_alt": "Incremental Lean",
   "key.leaningtower.increment_left": "Increment Left",
   "key.leaningtower.increment_right": "Increment Right"
 }

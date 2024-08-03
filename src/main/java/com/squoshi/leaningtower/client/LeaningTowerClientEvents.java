@@ -1,6 +1,7 @@
 package com.squoshi.leaningtower.client;
 
 import com.squoshi.leaningtower.LeanDirection;
+import net.minecraft.client.CameraType;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.api.distmarker.OnlyIn;
 import net.minecraftforge.client.event.ViewportEvent;
@@ -8,13 +9,16 @@ import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.player.LocalPlayer;
 
 @OnlyIn(Dist.CLIENT)
 @Mod.EventBusSubscriber(bus = Mod.EventBusSubscriber.Bus.FORGE, value = Dist.CLIENT)
 public class LeaningTowerClientEvents {
     @SubscribeEvent
     public static void onClientComputeCameraAngles(ViewportEvent.ComputeCameraAngles event) {
+        if (Minecraft.getInstance().options.getCameraType() != CameraType.FIRST_PERSON) {
+            return;
+        }
+
         LeanDirection leanDirection = ClientLeaningData.leanDirection;
         LeanDirection prevLeanDirection = ClientLeaningData.prevLeanDirection;
         int leanTickDelta = ClientLeaningData.leanTickDelta;
@@ -22,13 +26,13 @@ public class LeaningTowerClientEvents {
         float leanAngle = ClientLeaningData.getIncrementalLeanAngle();
 
         if (leanDirection != LeanDirection.NONE || ClientLeaningData.isHoldingAlt) { // Maintain angle if holding Alt
-            int duration = 80;
+            int duration = 42;
             float angleIfPositive = Math.min(leanAngle, easeToFrom((float) event.getRoll(), leanAngle, duration, leanTickDelta));
             float angleIfNegative = Math.max(leanAngle, easeToFrom((float) event.getRoll(), leanAngle, duration, leanTickDelta));
             float angle = leanAngle > 0 ? angleIfPositive : angleIfNegative;
             event.setRoll(angle);
         } else if (ClientLeaningData.isLeaning) {
-            int duration = 80;
+            int duration = 42;
             float rollAsFloat = prevLeanDirection == LeanDirection.LEFT ? -20 : 20;
             float angle = easeToFrom(rollAsFloat, 0, duration, stopLeanTickDelta);
             event.setRoll(angle);
