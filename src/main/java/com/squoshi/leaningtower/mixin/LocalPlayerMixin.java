@@ -58,7 +58,7 @@ public class LocalPlayerMixin {
 
             } else if (isLeaning) {
                 // Reset the position when the leaning key is released
-                player.setPos(originalPosition.x, originalPosition.y, originalPosition.z); // Reset to the original position
+                player.setPos(originalPosition.x, player.getY(), originalPosition.z); // Reset to the original position
                 isLeaning = false; // Reset the flag when the keys are released
                 movementTicks = 0; // Reset movement ticks
                 currentLeanDirection = LeanDirection.NONE;
