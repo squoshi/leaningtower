@@ -7,6 +7,8 @@ import net.minecraftforge.client.event.ViewportEvent;
 import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.player.LocalPlayer;
 
 @OnlyIn(Dist.CLIENT)
 @Mod.EventBusSubscriber(bus = Mod.EventBusSubscriber.Bus.FORGE, value = Dist.CLIENT)
@@ -20,14 +22,14 @@ public class LeaningTowerClientEvents {
         float leanAngle = ClientLeaningData.getIncrementalLeanAngle();
 
         if (leanDirection != LeanDirection.NONE || ClientLeaningData.isHoldingAlt) { // Maintain angle if holding Alt
-            int duration = 40;
+            int duration = 80;
             float angleIfPositive = Math.min(leanAngle, easeToFrom((float) event.getRoll(), leanAngle, duration, leanTickDelta));
             float angleIfNegative = Math.max(leanAngle, easeToFrom((float) event.getRoll(), leanAngle, duration, leanTickDelta));
             float angle = leanAngle > 0 ? angleIfPositive : angleIfNegative;
             event.setRoll(angle);
         } else if (ClientLeaningData.isLeaning) {
-            int duration = 40;
-            float rollAsFloat = prevLeanDirection == LeanDirection.LEFT ? -25 : 25;
+            int duration = 80;
+            float rollAsFloat = prevLeanDirection == LeanDirection.LEFT ? -20 : 20;
             float angle = easeToFrom(rollAsFloat, 0, duration, stopLeanTickDelta);
             event.setRoll(angle);
             if (angle == 0) {
@@ -49,7 +51,8 @@ public class LeaningTowerClientEvents {
         if (event.phase == TickEvent.Phase.END) {
             return;
         }
-        ClientLeaningData.isHoldingAlt = LeaningTowerKeyMappings.leftAlt.isDown(); // Track if Alt is held
+
+        ClientLeaningData.isHoldingAlt = LeaningTowerKeyMappings.leftAlt.isDown(); // Tracks if Alt is held
         if (LeaningTowerKeyMappings.leanLeft.isDown() && LeaningTowerKeyMappings.leanRight.isDown()) {
             ClientLeaningData.setLeanDirection(LeanDirection.NONE);
             return;
@@ -63,10 +66,10 @@ public class LeaningTowerClientEvents {
         } else {
             if (LeaningTowerKeyMappings.leanLeft.isDown()) {
                 ClientLeaningData.setLeanDirection(LeanDirection.LEFT);
-                ClientLeaningData.targetLeanAngle = -25; // Ensure lean is set to -20 for Q
+                ClientLeaningData.targetLeanAngle = -20; // Ensure lean is set to -20 for Q unless we agreed upon changing it
             } else if (LeaningTowerKeyMappings.leanRight.isDown()) {
                 ClientLeaningData.setLeanDirection(LeanDirection.RIGHT);
-                ClientLeaningData.targetLeanAngle = 25; // Ensure lean is set to 20 for E
+                ClientLeaningData.targetLeanAngle = 20; // Ensure lean is set to 20 for E unless we agreed upon changing it
             } else {
                 ClientLeaningData.setLeanDirection(LeanDirection.NONE);
             }

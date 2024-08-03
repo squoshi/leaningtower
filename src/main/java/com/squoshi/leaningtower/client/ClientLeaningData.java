@@ -13,6 +13,7 @@ public class ClientLeaningData {
     public static int stopLeanTickDelta = 0;
     public static float currentLeanAngle = 0; // Current angle for smooth interpolation
     public static float targetLeanAngle = 0;  // Target angle for smooth interpolation
+    public static float transitionAngle = 0;  // Transition angle for smooth swapping between Q and E
     public static boolean isHoldingAlt = false;
 
     public static void setLeaning(boolean leaning) {
@@ -20,6 +21,9 @@ public class ClientLeaningData {
     }
 
     public static void setLeanDirection(LeanDirection leanDirection) {
+        if (ClientLeaningData.leanDirection != leanDirection) {
+            ClientLeaningData.transitionAngle = ClientLeaningData.currentLeanAngle;
+        }
         ClientLeaningData.leanDirection = leanDirection;
         if (leanDirection != LeanDirection.NONE) {
             setPrevLeanDirection(leanDirection);
@@ -55,7 +59,11 @@ public class ClientLeaningData {
     }
 
     private static void smoothUpdate() {
-        float smoothingFactor = 0.1f; // Adjust this value for smoother transitions (lower value means smoother transition)
-        currentLeanAngle += (targetLeanAngle - currentLeanAngle) * smoothingFactor;
+        float smoothingFactor = 0.05f; // Adjust this value for smoother transitions (lower value means smoother transition)
+        if (currentLeanAngle < targetLeanAngle) {
+            currentLeanAngle = Math.min(currentLeanAngle + smoothingFactor * Math.abs(targetLeanAngle - currentLeanAngle), targetLeanAngle);
+        } else if (currentLeanAngle > targetLeanAngle) {
+            currentLeanAngle = Math.max(currentLeanAngle - smoothingFactor * Math.abs(targetLeanAngle - currentLeanAngle), targetLeanAngle);
+        }
     }
 }
