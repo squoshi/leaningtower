@@ -73,11 +73,8 @@ public class LocalPlayerMixin {
 
 
                     // Check for collision
-
                     if (!player.level().noCollision(player, player.getBoundingBox().move(targetPos.subtract(player.position())))) {
-
                         // If collision is detected, move the player away from the colliding block
-
                         Vec3 collisionNormal = getCollisionNormal(player, targetPos);
 
                         targetPos = targetPos.add(collisionNormal.x * 0.05, collisionNormal.y * 0.05, collisionNormal.z * 0.05);
@@ -95,7 +92,6 @@ public class LocalPlayerMixin {
             } else if (isLeaning) {
 
                 // Move back on release
-
                 if (movementTicks > 0) {
 
                     double incrementalOffset = TOTAL_OFFSET / TICKS_TO_MOVE;
@@ -115,13 +111,7 @@ public class LocalPlayerMixin {
 
                     }
 
-
-                    // Check for collision
-
                     if (!player.level().noCollision(player, player.getBoundingBox().move(targetPos.subtract(player.position())))) {
-
-                        // If collision is detected, move the player away from the colliding block
-
                         Vec3 collisionNormal = getCollisionNormal(player, targetPos);
 
                         targetPos = targetPos.add(collisionNormal.x * 0.05, collisionNormal.y * 0.05, collisionNormal.z * 0.05);
@@ -152,7 +142,7 @@ public class LocalPlayerMixin {
 
     private Vec3 getCollisionNormal(LocalPlayer player, Vec3 targetPos) {
 
-        // Calculate the collision normal (the direction away from the colliding block)
+        // direction away from the colliding block
 
         Vec3 collisionNormal = player.position().subtract(targetPos).normalize();
 
