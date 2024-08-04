@@ -21,6 +21,7 @@ public class LocalPlayerMixin {
     private static final int TICKS_TO_MOVE = 4;
     private int movementTicks = 0;
     private LeanDirection currentLeanDirection = LeanDirection.NONE;
+    private static final double EDGE_MARGIN = 0.8; // Margin to add to edge detection
 
     @Inject(method = "move", at = @At("HEAD"), cancellable = true)
     private void leaningtower$move(MoverType pType, Vec3 pPos, CallbackInfo ci) {
@@ -33,13 +34,8 @@ public class LocalPlayerMixin {
                 return;
             }
 
-            // Check if the player is sprinting or jumping
-            if (player.isSprinting() || player.input.jumping) {
-                ClientLeaningData.stopLeaning();
-            }
-
             // Handle leaning with Q and E keys
-            if (ClientLeaningData.leanDirection != LeanDirection.NONE) {
+            if (ClientLeaningData.leanDirection != LeanDirection.NONE && player.onGround()) {
                 if (!isLeaning || currentLeanDirection != ClientLeaningData.leanDirection) {
                     isLeaning = true;
                     movementTicks = 0;
@@ -55,9 +51,7 @@ public class LocalPlayerMixin {
                         targetPos = targetPos.add(-direction.x * incrementalOffset, 0, -direction.z * incrementalOffset);
                     }
 
-                    // Check if there's a block below the target position
                     if (!isBlockBelow(player, targetPos)) {
-                        smoothCorrectPosition(player, currentLeanDirection);
                         ci.cancel();
                         return;
                     } else {
@@ -77,9 +71,7 @@ public class LocalPlayerMixin {
                         targetPos = targetPos.add(direction.x * incrementalOffset, 0, direction.z * incrementalOffset);
                     }
 
-                    // Check if there's a block below the target position
                     if (!isBlockBelow(player, targetPos)) {
-                        smoothCorrectPosition(player, currentLeanDirection);
                         ci.cancel();
                         return;
                     } else {
@@ -93,15 +85,28 @@ public class LocalPlayerMixin {
                 }
             }
 
-            // Additional continuous check during normal movement only if leaning and not jumping
-            if (isLeaning && !player.input.jumping) {
+            // Apply sneak-like behavior only when leaning
+            if (isLeaning) {
+                pPos = maybeBackOffFromEdge(player, pPos);
                 Vec3 futurePos = player.position().add(pPos);
                 if (!isBlockBelow(player, futurePos)) {
-                    smoothCorrectPosition(player, currentLeanDirection);
                     ci.cancel();
+                    return;
                 }
             }
         }
+    }
+
+    private double calculateLeanOffset(LocalPlayer player, double offset) {
+        Vec3 direction = player.getLookAngle().yRot((float) Math.PI / 2);
+        Vec3 leftPos = player.position().add(direction.x * (offset + EDGE_MARGIN), 0, direction.z * (offset + EDGE_MARGIN));
+        Vec3 rightPos = player.position().add(-direction.x * (offset + EDGE_MARGIN), 0, -direction.z * (offset + EDGE_MARGIN));
+
+        if (!isBlockBelow(player, leftPos) || !isBlockBelow(player, rightPos)) {
+            return 0; // Prevent leaning if near the edge
+        }
+
+        return offset;
     }
 
     private boolean isBlockBelow(LocalPlayer player, Vec3 position) {
@@ -133,57 +138,21 @@ public class LocalPlayerMixin {
         return false; // No solid ground found at the required positions
     }
 
-    private Vec3 findSupportedPosition(LocalPlayer player) {
-        Vec3 position = player.position();
-        double yOffset = -0.1; // Check slightly below the player's feet
+    private Vec3 maybeBackOffFromEdge(LocalPlayer player, Vec3 vec) {
         Level level = player.level();
-
-        // Check current position
-        BlockPos blockPos = new BlockPos(
-                (int) Math.floor(position.x),
-                (int) Math.floor(position.y - 1),
-                (int) Math.floor(position.z)
-        );
-        if (!level.getBlockState(blockPos).isAir()) {
-            return position;
-        }
-
-        // Check slightly adjusted positions to find support
-        Vec3[] offsets = {
-                new Vec3(0.1, 0, 0),
-                new Vec3(-0.1, 0, 0),
-                new Vec3(0, 0, 0.1),
-                new Vec3(0, 0, -0.1),
-                new Vec3(0.1, 0, 0.1),
-                new Vec3(-0.1, 0, -0.1),
-                new Vec3(0.1, 0, -0.1),
-                new Vec3(-0.1, 0, 0.1)
+        Vec3[] directions = {
+                new Vec3(vec.x, 0, 0),
+                new Vec3(0, 0, vec.z),
+                new Vec3(vec.x, 0, vec.z)
         };
 
-        for (Vec3 offset : offsets) {
-            Vec3 checkPos = position.add(offset);
-            BlockPos checkBlockPos = new BlockPos(
-                    (int) Math.floor(checkPos.x),
-                    (int) Math.floor(position.y - 1),
-                    (int) Math.floor(checkPos.z)
-            );
-            if (!level.getBlockState(checkBlockPos).isAir()) {
-                return checkPos;
+        for (Vec3 dir : directions) {
+            Vec3 futurePos = player.position().add(dir);
+            if (!isBlockBelow(player, futurePos)) {
+                return Vec3.ZERO;
             }
         }
 
-        return null; // No supported position found
-    }
-
-    private void smoothCorrectPosition(LocalPlayer player, LeanDirection leanDirection) {
-        Vec3 direction = player.getLookAngle().yRot((float) Math.PI / 2); // Get the perpendicular direction
-        Vec3 currentPos = player.position();
-        double correctionFactor = 0.05; // Smaller correction factor for smoother adjustment
-
-        if (leanDirection == LeanDirection.LEFT) {
-            player.setPos(currentPos.x - direction.x * correctionFactor, currentPos.y, currentPos.z - direction.z * correctionFactor);
-        } else if (leanDirection == LeanDirection.RIGHT) {
-            player.setPos(currentPos.x + direction.x * correctionFactor, currentPos.y, currentPos.z + direction.z * correctionFactor);
-        }
+        return vec;
     }
 }
