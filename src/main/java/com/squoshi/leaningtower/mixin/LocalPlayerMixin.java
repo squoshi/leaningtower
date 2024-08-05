@@ -3,6 +3,8 @@ package com.squoshi.leaningtower.mixin;
 import com.squoshi.leaningtower.LeanDirection;
 import com.squoshi.leaningtower.client.ClientLeaningData;
 import com.squoshi.leaningtower.client.LeaningTowerKeyMappings;
+import com.squoshi.leaningtower.network.LeaningPacket;
+import com.squoshi.leaningtower.network.NetworkHandler;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.world.entity.MoverType;
 import net.minecraft.world.phys.Vec3;
@@ -61,6 +63,7 @@ public class LocalPlayerMixin {
                     isLeaning = true;
                     movementTicks = 0;
                     currentLeanDirection = ClientLeaningData.leanDirection;
+                    NetworkHandler.INSTANCE.sendToServer(new LeaningPacket(currentLeanDirection == LeanDirection.LEFT || currentLeanDirection == LeanDirection.RIGHT));
                 }
                 if (movementTicks < TICKS_TO_MOVE) {
                     double incrementalOffset = TOTAL_OFFSET / TICKS_TO_MOVE;
@@ -103,6 +106,7 @@ public class LocalPlayerMixin {
                     isLeaning = false;
                     movementTicks = 0;
                     currentLeanDirection = LeanDirection.NONE;
+                    NetworkHandler.INSTANCE.sendToServer(new LeaningPacket(false));
                 }
             }
 
