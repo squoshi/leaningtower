@@ -34,11 +34,29 @@ public class LocalPlayerMixin {
         if (pType == MoverType.SELF) {
             LocalPlayer player = (LocalPlayer) (Object) this;
             Level level = player.level();
-
             boolean isOnGround = player.onGround();
 
+            // Log the state for debugging
+            System.out.println("Leaning direction: " + ClientLeaningData.leanDirection);
+            System.out.println("Is on ground: " + isOnGround);
+            System.out.println("Is returning to position: " + returningToPosition);
+            System.out.println("Initial position: " + initialPosition);
+            System.out.println("Movement ticks: " + movementTicks);
+
+            // Prevent leaning if the player is not on the ground
+            if (!isOnGround) {
+                // Reset leaning state when in the air
+                if (isLeaning || returningToPosition) {
+                    isLeaning = false;
+                    returningToPosition = false;
+                    ClientLeaningData.leanDirection = LeanDirection.NONE;
+                    ClientLeaningData.targetLeanAngle = 0;
+                }
+                return;
+            }
+
             // Handle leaning with Q and E keys (unaffected by incremental lean)
-            if (ClientLeaningData.leanDirection != LeanDirection.NONE && !LeaningTowerKeyMappings.leftAlt.isDown() && isOnGround) {
+            if (ClientLeaningData.leanDirection != LeanDirection.NONE && !LeaningTowerKeyMappings.leftAlt.isDown()) {
                 if (!isLeaning || currentLeanDirection != ClientLeaningData.leanDirection) {
                     isLeaning = true;
                     movementTicks = 0;
@@ -164,8 +182,8 @@ public class LocalPlayerMixin {
                 }
             }
 
-            // Apply sneak-like behavior only when leaning
-            if (isLeaning && !returningToPosition) {
+            // Apply sneak-like behavior only when leaning and on the ground
+            if (isLeaning && !returningToPosition && isOnGround) {
                 pPos = maybeBackOffFromEdge(player, pPos);
                 Vec3 futurePos = player.position().add(pPos);
                 if (!isBlockBelow(player, futurePos) && !isFloatingBlock(level, futurePos)) {
@@ -219,16 +237,6 @@ public class LocalPlayerMixin {
         return false; // No solid ground found at the required positions
     }
 
-    private boolean isFloatingBlock(Level level, Vec3 position) {
-        BlockPos blockPos = new BlockPos(
-                (int) Math.floor(position.x),
-                (int) Math.floor(position.y - 1),
-                (int) Math.floor(position.z)
-        );
-        BlockState stateBelow = level.getBlockState(blockPos);
-        return stateBelow.isAir() && !level.getBlockState(blockPos.below()).isAir();
-    }
-
     private Vec3 maybeBackOffFromEdge(LocalPlayer player, Vec3 vec) {
         Level level = player.level();
         Vec3[] directions = {
@@ -253,5 +261,11 @@ public class LocalPlayerMixin {
         }
 
         return vec;
+    }
+
+    private boolean isFloatingBlock(Level level, Vec3 position) {
+        BlockPos blockPos = new BlockPos((int) Math.floor(position.x), (int) Math.floor(position.y - 1), (int) Math.floor(position.z));
+        BlockState stateBelow = level.getBlockState(blockPos);
+        return stateBelow.isAir();
     }
 }
