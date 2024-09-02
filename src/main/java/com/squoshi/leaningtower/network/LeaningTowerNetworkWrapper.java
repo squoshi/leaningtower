@@ -1,16 +1,14 @@
 package com.squoshi.leaningtower.network;
 
+import com.squoshi.leaningtower.LeaningTower;
 import net.minecraft.resources.ResourceLocation;
-import net.minecraftforge.network.NetworkDirection;
 import net.minecraftforge.network.NetworkRegistry;
 import net.minecraftforge.network.simple.SimpleChannel;
 
-import java.util.Optional;
-
-public class NetworkHandler {
+public class LeaningTowerNetworkWrapper {
     private static final String PROTOCOL_VERSION = "1";
     public static final SimpleChannel INSTANCE = NetworkRegistry.newSimpleChannel(
-            new ResourceLocation("leaningtower", "main"),
+            new ResourceLocation(LeaningTower.MODID, "network"),
             () -> PROTOCOL_VERSION,
             PROTOCOL_VERSION::equals,
             PROTOCOL_VERSION::equals
@@ -18,6 +16,6 @@ public class NetworkHandler {
 
     public static void register() {
         int id = 0;
-        INSTANCE.registerMessage(id++, LeaningPacket.class, LeaningPacket::encode, LeaningPacket::decode, LeaningPacket::handle, Optional.of(NetworkDirection.PLAY_TO_SERVER));
+        INSTANCE.registerMessage(id++, LeanMessage.class, LeanMessage::encode, LeanMessage::decode, LeanMessage::handle);
     }
 }

@@ -5,8 +5,7 @@
   "refmap": "leaningtower.refmap.json",
   "mixins": [],
   "client": [
-    "LocalPlayerMixin",
-    "ServerPlayerMixin"
+    "LocalPlayerMixin"
   ],
   "minVersion": "0.8.5"
 }
