@@ -180,6 +180,12 @@ public class LocalPlayerMixin {
                     currentLeanOffset = calculateLeanOffset(player, ClientLeaningData.targetLeanAngle);
                     targetPos = targetPos.add(-leanDirection.x * currentLeanOffset, 0, -leanDirection.z * currentLeanOffset);
                     ClientLeaningData.targetLeanAngle -= ALT_TOTAL_OFFSET / ALT_TICKS_TO_MOVE;
+
+                    // Adjust for wall detection during Alt Lean
+                    double adjustedDistance = getAdjustedLeanDistance(player, leanDirection.scale(-1));
+                    if (currentLeanOffset > adjustedDistance) {
+                        return; // Stop movement if a wall is detected
+                    }
                 } else {
                     return;
                 }
@@ -188,6 +194,12 @@ public class LocalPlayerMixin {
                     currentLeanOffset = calculateLeanOffset(player, ClientLeaningData.targetLeanAngle);
                     targetPos = targetPos.add(leanDirection.x * currentLeanOffset, 0, leanDirection.z * currentLeanOffset);
                     ClientLeaningData.targetLeanAngle += ALT_TOTAL_OFFSET / ALT_TICKS_TO_MOVE;
+
+                    // Adjust for wall detection during Alt Lean
+                    double adjustedDistance = getAdjustedLeanDistance(player, leanDirection);
+                    if (currentLeanOffset > adjustedDistance) {
+                        return; // Stop movement if a wall is detected
+                    }
                 } else {
                     return;
                 }
