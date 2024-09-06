@@ -24,7 +24,7 @@ public class LocalPlayerMixin {
     private static final int ALT_TICKS_TO_MOVE = 5; // Ticks to move for left alt + A/D
     private static final double MAX_LEAN_DISTANCE = 0.7; // Maximum distance the player can lean
     private static final double EDGE_MARGIN = 0.5; // Edge detection margin
-    private static final double WALL_MARGIN = 0.1; // Margin to stop before hitting the wall
+    private static final double WALL_MARGIN = 0.03; // Margin to stop before hitting the wall
     private int movementTicks = 0;
     private LeanDirection currentLeanDirection = LeanDirection.NONE;
     private static final float MAX_LEAN_ANGLE = 35.0f; // Maximum lean angle
