@@ -59,7 +59,7 @@ public class ClientLeaningData {
     }
 
     private static void smoothUpdate(float deltaTime) {
-        float smoothingFactor = 0.05f; // Adjust this value for smoother transitions (lower value means smoother transition)
+        float smoothingFactor = 0.15f; // Increased smoothing factor for a smoother transition
         float adjustedSmoothing = smoothingFactor * deltaTime; // Adjust by frame time
 
         if (currentLeanAngle < targetLeanAngle) {
@@ -70,11 +70,9 @@ public class ClientLeaningData {
     }
 
     public static void stopLeaning() {
-        leanDirection = LeanDirection.NONE;
         isLeaning = false;
         leanTickDelta = 0;
         stopLeanTickDelta = 0;
-        currentLeanAngle = 0;
-        targetLeanAngle = 0;
+        targetLeanAngle = 0; // Ensure the target angle is set to zero before smoothing to center
     }
 }

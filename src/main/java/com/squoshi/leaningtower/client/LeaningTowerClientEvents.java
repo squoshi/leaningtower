@@ -34,7 +34,7 @@ public class LeaningTowerClientEvents {
         } else if (ClientLeaningData.isLeaning) {
             int duration = 42;
             float targetAngle = prevLeanDirection == LeanDirection.LEFT ? -20 : 20;
-            float angle = (float) easeToFrom((double) targetAngle, 0.0, duration, stopLeanTickDelta, (double) event.getPartialTick());
+            float angle = (float) easeToFrom((double) ClientLeaningData.currentLeanAngle, 0.0, duration, stopLeanTickDelta, (double) event.getPartialTick());
             event.setRoll(angle);
             if (Math.abs(angle) < 0.01) { // If the angle is very close to zero, stop leaning
                 ClientLeaningData.leanTickDelta = 0;
