@@ -26,29 +26,28 @@ public class LeaningTowerClientEvents {
         int stopLeanTickDelta = ClientLeaningData.stopLeanTickDelta;
         float leanAngle = ClientLeaningData.getIncrementalLeanAngle();
 
-        if (leanDirection != LeanDirection.NONE || ClientLeaningData.isHoldingAlt) { // Maintain angle if holding Alt
+        if (leanDirection != LeanDirection.NONE || ClientLeaningData.isHoldingAlt) {
             int duration = 42;
-            float angleIfPositive = Math.min(leanAngle, easeToFrom((float) event.getRoll(), leanAngle, duration, leanTickDelta));
-            float angleIfNegative = Math.max(leanAngle, easeToFrom((float) event.getRoll(), leanAngle, duration, leanTickDelta));
-            float angle = leanAngle > 0 ? angleIfPositive : angleIfNegative;
+            float currentRoll = (float) event.getRoll();
+            float angle = (float) easeToFrom((double) currentRoll, (double) leanAngle, duration, leanTickDelta, (double) event.getPartialTick());
             event.setRoll(angle);
         } else if (ClientLeaningData.isLeaning) {
             int duration = 42;
-            float rollAsFloat = prevLeanDirection == LeanDirection.LEFT ? -20 : 20;
-            float angle = easeToFrom(rollAsFloat, 0, duration, stopLeanTickDelta);
+            float targetAngle = prevLeanDirection == LeanDirection.LEFT ? -20 : 20;
+            float angle = (float) easeToFrom((double) targetAngle, 0.0, duration, stopLeanTickDelta, (double) event.getPartialTick());
             event.setRoll(angle);
-            if (angle == 0) {
+            if (Math.abs(angle) < 0.01) { // If the angle is very close to zero, stop leaning
                 ClientLeaningData.leanTickDelta = 0;
                 ClientLeaningData.stopLeanTickDelta = 0;
                 ClientLeaningData.setLeaning(false);
-                ClientLeaningData.targetLeanAngle = 0; // Reset target angle when not leaning
+                ClientLeaningData.targetLeanAngle = 0;
             }
         }
     }
 
     @SubscribeEvent
     public static void onClientRenderTick(TickEvent.RenderTickEvent event) {
-        ClientLeaningData.tick();
+        ClientLeaningData.tick(event.renderTickTime);
     }
 
     @SubscribeEvent
@@ -89,10 +88,12 @@ public class LeaningTowerClientEvents {
         }
     }
 
-    private static float easeToFrom(float from, float to, int duration, int tickDelta) {
-        if (tickDelta >= duration) {
+    private static double easeToFrom(double from, double to, int duration, int tickDelta, double partialTicks) {
+        double progress = (tickDelta + partialTicks) / duration;
+        if (progress >= 1.0) {
             return to;
         }
-        return from + (to - from) * tickDelta / duration;
+        // Smooth easing using a cubic function for smoother transition
+        return from + (to - from) * (Math.pow(progress, 3) * (progress * (6.0 * progress - 15.0) + 10.0));
     }
 }

@@ -45,25 +45,27 @@ public class ClientLeaningData {
         setLeanDirection(direction); // Ensure lean direction is updated
     }
 
-    public static void tick() {
+    public static void tick(float deltaTime) {
         if (ClientLeaningData.leanDirection != LeanDirection.NONE) {
             ClientLeaningData.leanTickDelta++;
         } else if (ClientLeaningData.isLeaning) {
             ClientLeaningData.stopLeanTickDelta++;
         }
-        smoothUpdate(); // Update current angle smoothly towards the target angle
+        smoothUpdate(deltaTime); // Update current angle smoothly towards the target angle
     }
 
     public static float getIncrementalLeanAngle() {
         return currentLeanAngle;
     }
 
-    private static void smoothUpdate() {
+    private static void smoothUpdate(float deltaTime) {
         float smoothingFactor = 0.05f; // Adjust this value for smoother transitions (lower value means smoother transition)
+        float adjustedSmoothing = smoothingFactor * deltaTime; // Adjust by frame time
+
         if (currentLeanAngle < targetLeanAngle) {
-            currentLeanAngle = Math.min(currentLeanAngle + smoothingFactor * Math.abs(targetLeanAngle - currentLeanAngle), targetLeanAngle);
+            currentLeanAngle = Math.min(currentLeanAngle + adjustedSmoothing * Math.abs(targetLeanAngle - currentLeanAngle), targetLeanAngle);
         } else if (currentLeanAngle > targetLeanAngle) {
-            currentLeanAngle = Math.max(currentLeanAngle - smoothingFactor * Math.abs(targetLeanAngle - currentLeanAngle), targetLeanAngle);
+            currentLeanAngle = Math.max(currentLeanAngle - adjustedSmoothing * Math.abs(targetLeanAngle - currentLeanAngle), targetLeanAngle);
         }
     }
 
