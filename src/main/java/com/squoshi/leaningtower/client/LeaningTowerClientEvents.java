@@ -35,23 +35,26 @@ public class LeaningTowerClientEvents {
         int stopLeanTickDelta = ClientLeaningData.stopLeanTickDelta;
         float leanAngle = ClientLeaningData.getIncrementalLeanAngle();
 
-        // Handle camera roll for Alt lean and toggle lean separately
-        if (leanDirection != LeanDirection.NONE || ClientLeaningData.isHoldingAlt) {
-            int duration = ClientLeaningData.isHoldingAlt ? ALT_RESET_DURATION : NORMAL_RESET_DURATION;
+        if (ClientLeaningData.isHoldingAlt) {
+            int duration = ALT_RESET_DURATION;
             float currentRoll = (float) event.getRoll();
             float angle = (float) easeToFrom(currentRoll, leanAngle, duration, leanTickDelta, event.getPartialTick());
             event.setRoll(angle);
-        } else if (ClientLeaningData.isLeaning) {
-            int duration = NORMAL_RESET_DURATION;
-            float targetAngle = prevLeanDirection == LeanDirection.LEFT ? -20 : 20;
-            float angle = (float) easeToFrom(ClientLeaningData.currentLeanAngle, 0.0, duration, stopLeanTickDelta, event.getPartialTick());
+        } else if (ClientLeaningData.isLeaning && ClientLeaningData.leanDirection == LeanDirection.NONE) {
+            // Only apply the slow reset when Alt is released
+            float targetAngle = 0.0f;
+            int duration = ALT_RESET_DURATION;
+            float angle = (float) easeToFrom(ClientLeaningData.currentLeanAngle, targetAngle, duration, stopLeanTickDelta, event.getPartialTick());
             event.setRoll(angle);
             if (Math.abs(angle) < 0.01) { // If the angle is very close to zero, stop leaning
-                ClientLeaningData.leanTickDelta = 0;
-                ClientLeaningData.stopLeanTickDelta = 0;
-                ClientLeaningData.setLeaning(false);
-                ClientLeaningData.targetLeanAngle = 0;
+                resetLeaningState();
             }
+        } else if (leanDirection != LeanDirection.NONE) {
+            // Regular lean reset
+            int duration = NORMAL_RESET_DURATION;
+            float currentRoll = (float) event.getRoll();
+            float angle = (float) easeToFrom(currentRoll, leanAngle, duration, leanTickDelta, event.getPartialTick());
+            event.setRoll(angle);
         }
     }
 
@@ -147,12 +150,19 @@ public class LeaningTowerClientEvents {
     }
 
     private static void resetAltLeanState() {
-        // Reset camera and player position to neutral after Alt lean is released
         ClientLeaningData.setLeanDirection(LeanDirection.NONE);
         ClientLeaningData.targetLeanAngle = 0;
         ClientLeaningData.stopLeanTickDelta = 0;
         ClientLeaningData.leanTickDelta = 0;
+        ClientLeaningData.setLeaning(true); // Ensures the easing happens when Alt is released
+    }
+
+    private static void resetLeaningState() {
+        ClientLeaningData.leanTickDelta = 0;
+        ClientLeaningData.stopLeanTickDelta = 0;
         ClientLeaningData.setLeaning(false);
+        ClientLeaningData.targetLeanAngle = 0;
+        ClientLeaningData.currentLeanAngle = 0;
     }
 
     private static double easeToFrom(double from, double to, int duration, int tickDelta, double partialTicks) {
@@ -160,7 +170,6 @@ public class LeaningTowerClientEvents {
         if (progress >= 1.0) {
             return to;
         }
-        // Smooth easing using a cubic function for smoother transition
         return from + (to - from) * (Math.pow(progress, 3) * (progress * (6.0 * progress - 15.0) + 10.0));
     }
 }
