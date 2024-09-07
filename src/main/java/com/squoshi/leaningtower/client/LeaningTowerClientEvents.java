@@ -1,6 +1,7 @@
 package com.squoshi.leaningtower.client;
 
 import com.squoshi.leaningtower.LeanDirection;
+import com.squoshi.leaningtower.config.LeaningTowerConfig;
 import net.minecraft.client.CameraType;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
@@ -10,10 +11,18 @@ import net.minecraftforge.client.event.ViewportEvent;
 import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 @OnlyIn(Dist.CLIENT)
-@Mod.EventBusSubscriber(bus = Mod.EventBusSubscriber.Bus.FORGE, value = Dist.CLIENT)
+@Mod.EventBusSubscriber(modid = "leaningtower", value = Dist.CLIENT, bus = Mod.EventBusSubscriber.Bus.FORGE)
 public class LeaningTowerClientEvents {
+    private static final Logger LOGGER = LogManager.getLogger();
+    private static boolean leanLeftToggled = false;
+    private static boolean leanRightToggled = false;
+    private static final int ALT_RESET_DURATION = 60; // Duration for Alt lean reset (slower)
+    private static final int NORMAL_RESET_DURATION = 42; // Duration for normal lean reset (faster)
+
     @SubscribeEvent
     public static void onClientComputeCameraAngles(ViewportEvent.ComputeCameraAngles event) {
         if (Minecraft.getInstance().options.getCameraType() != CameraType.FIRST_PERSON) {
@@ -26,15 +35,16 @@ public class LeaningTowerClientEvents {
         int stopLeanTickDelta = ClientLeaningData.stopLeanTickDelta;
         float leanAngle = ClientLeaningData.getIncrementalLeanAngle();
 
+        // Handle camera roll for Alt lean and toggle lean separately
         if (leanDirection != LeanDirection.NONE || ClientLeaningData.isHoldingAlt) {
-            int duration = 42;
+            int duration = ClientLeaningData.isHoldingAlt ? ALT_RESET_DURATION : NORMAL_RESET_DURATION;
             float currentRoll = (float) event.getRoll();
-            float angle = (float) easeToFrom((double) currentRoll, (double) leanAngle, duration, leanTickDelta, (double) event.getPartialTick());
+            float angle = (float) easeToFrom(currentRoll, leanAngle, duration, leanTickDelta, event.getPartialTick());
             event.setRoll(angle);
         } else if (ClientLeaningData.isLeaning) {
-            int duration = 42;
+            int duration = NORMAL_RESET_DURATION;
             float targetAngle = prevLeanDirection == LeanDirection.LEFT ? -20 : 20;
-            float angle = (float) easeToFrom((double) ClientLeaningData.currentLeanAngle, 0.0, duration, stopLeanTickDelta, (double) event.getPartialTick());
+            float angle = (float) easeToFrom(ClientLeaningData.currentLeanAngle, 0.0, duration, stopLeanTickDelta, event.getPartialTick());
             event.setRoll(angle);
             if (Math.abs(angle) < 0.01) { // If the angle is very close to zero, stop leaning
                 ClientLeaningData.leanTickDelta = 0;
@@ -47,6 +57,9 @@ public class LeaningTowerClientEvents {
 
     @SubscribeEvent
     public static void onClientRenderTick(TickEvent.RenderTickEvent event) {
+        if (event.phase == TickEvent.Phase.END) {
+            return;
+        }
         ClientLeaningData.tick(event.renderTickTime);
     }
 
@@ -56,36 +69,90 @@ public class LeaningTowerClientEvents {
             return;
         }
 
-        ClientLeaningData.isHoldingAlt = LeaningTowerKeyMappings.leftAlt.isDown(); // Tracks if Alt is held
-        if (LeaningTowerKeyMappings.leanLeft.isDown() && LeaningTowerKeyMappings.leanRight.isDown()) {
-            ClientLeaningData.setLeanDirection(LeanDirection.NONE);
-            return;
-        }
+        boolean holdLean = LeaningTowerConfig.CLIENT.holdLean.get();
+        boolean wasHoldingAlt = ClientLeaningData.isHoldingAlt;
+        ClientLeaningData.isHoldingAlt = LeaningTowerKeyMappings.leftAlt.isDown();
+
         if (ClientLeaningData.isHoldingAlt) {
-            if (LeaningTowerKeyMappings.incrementLeft.isDown()) {
-                ClientLeaningData.incrementLean(LeanDirection.LEFT);
-            } else if (LeaningTowerKeyMappings.incrementRight.isDown()) {
-                ClientLeaningData.incrementLean(LeanDirection.RIGHT);
-            }
+            handleAltLean();
+        } else if (wasHoldingAlt) {
+            // Reset state after Alt is released
+            resetAltLeanState();
+        } else if (holdLean) {
+            handleHoldLean();
         } else {
-            if (LeaningTowerKeyMappings.leanLeft.isDown()) {
-                ClientLeaningData.setLeanDirection(LeanDirection.LEFT);
-                ClientLeaningData.targetLeanAngle = -20; // Ensure lean is set to -20 for Q unless we agreed upon changing it
-            } else if (LeaningTowerKeyMappings.leanRight.isDown()) {
-                ClientLeaningData.setLeanDirection(LeanDirection.RIGHT);
-                ClientLeaningData.targetLeanAngle = 20; // Ensure lean is set to 20 for E unless we agreed upon changing it
-            } else {
-                ClientLeaningData.setLeanDirection(LeanDirection.NONE);
-            }
+            handleToggleLean();
         }
 
         // Stop leaning if sprinting or jumping
         LocalPlayer player = Minecraft.getInstance().player;
-        if (player != null) {
-            if (player.isSprinting() || player.input.jumping) {
-                ClientLeaningData.stopLeaning();
-            }
+        if (player != null && (player.isSprinting() || player.input.jumping)) {
+            ClientLeaningData.stopLeaning();
         }
+    }
+
+    private static void handleHoldLean() {
+        if (LeaningTowerKeyMappings.leanLeft.isDown() && LeaningTowerKeyMappings.leanRight.isDown()) {
+            ClientLeaningData.setLeanDirection(LeanDirection.NONE);
+            return;
+        }
+
+        if (LeaningTowerKeyMappings.leanLeft.isDown()) {
+            ClientLeaningData.setLeanDirection(LeanDirection.LEFT);
+            ClientLeaningData.targetLeanAngle = -20;
+        } else if (LeaningTowerKeyMappings.leanRight.isDown()) {
+            ClientLeaningData.setLeanDirection(LeanDirection.RIGHT);
+            ClientLeaningData.targetLeanAngle = 20;
+        } else {
+            ClientLeaningData.setLeanDirection(LeanDirection.NONE);
+        }
+    }
+
+    private static void handleToggleLean() {
+        if (LeaningTowerKeyMappings.leanLeft.isDown()) {
+            if (!leanLeftToggled) {
+                if (ClientLeaningData.leanDirection == LeanDirection.LEFT) {
+                    ClientLeaningData.setLeanDirection(LeanDirection.NONE);
+                } else {
+                    ClientLeaningData.setLeanDirection(LeanDirection.LEFT);
+                    ClientLeaningData.targetLeanAngle = -20;
+                }
+                leanLeftToggled = true;
+            }
+        } else {
+            leanLeftToggled = false;
+        }
+
+        if (LeaningTowerKeyMappings.leanRight.isDown()) {
+            if (!leanRightToggled) {
+                if (ClientLeaningData.leanDirection == LeanDirection.RIGHT) {
+                    ClientLeaningData.setLeanDirection(LeanDirection.NONE);
+                } else {
+                    ClientLeaningData.setLeanDirection(LeanDirection.RIGHT);
+                    ClientLeaningData.targetLeanAngle = 20;
+                }
+                leanRightToggled = true;
+            }
+        } else {
+            leanRightToggled = false;
+        }
+    }
+
+    private static void handleAltLean() {
+        if (LeaningTowerKeyMappings.incrementLeft.isDown()) {
+            ClientLeaningData.incrementLean(LeanDirection.LEFT);
+        } else if (LeaningTowerKeyMappings.incrementRight.isDown()) {
+            ClientLeaningData.incrementLean(LeanDirection.RIGHT);
+        }
+    }
+
+    private static void resetAltLeanState() {
+        // Reset camera and player position to neutral after Alt lean is released
+        ClientLeaningData.setLeanDirection(LeanDirection.NONE);
+        ClientLeaningData.targetLeanAngle = 0;
+        ClientLeaningData.stopLeanTickDelta = 0;
+        ClientLeaningData.leanTickDelta = 0;
+        ClientLeaningData.setLeaning(false);
     }
 
     private static double easeToFrom(double from, double to, int duration, int tickDelta, double partialTicks) {
