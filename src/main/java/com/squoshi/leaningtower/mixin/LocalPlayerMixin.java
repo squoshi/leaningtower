@@ -25,7 +25,7 @@ public class LocalPlayerMixin {
     private static final double MAX_LEAN_DISTANCE = 0.7; // Maximum distance the player can lean
     private static final double EDGE_MARGIN = 0.01; // Base edge margin
     private static final double OVERHANG_ALLOWANCE = 0.05; // Allowance for player to overhang
-    private static final double WALL_MARGIN = 0.03; // Margin to stop before hitting the wall
+    private static final double WALL_MARGIN = 0.3; // Margin to stop before hitting the wall
     private int movementTicks = 0;
     private LeanDirection currentLeanDirection = LeanDirection.NONE;
     private static final float MAX_LEAN_ANGLE = 35.0f; // Maximum lean angle
@@ -120,11 +120,12 @@ public class LocalPlayerMixin {
 
         if (movementTicks < TICKS_TO_MOVE) {
             double incrementalOffset = Math.min(TOTAL_OFFSET / TICKS_TO_MOVE, maxLeanDistance);
-            Vec3 targetPos = player.position();
+            Vec3 movementVector = Vec3.ZERO;
+
             if (ClientLeaningData.leanDirection == LeanDirection.LEFT) {
-                targetPos = targetPos.add(-leanDirection.x * incrementalOffset, 0, -leanDirection.z * incrementalOffset);
+                movementVector = new Vec3(-leanDirection.x * incrementalOffset, 0, -leanDirection.z * incrementalOffset);
             } else if (ClientLeaningData.leanDirection == LeanDirection.RIGHT) {
-                targetPos = targetPos.add(leanDirection.x * incrementalOffset, 0, leanDirection.z * incrementalOffset);
+                movementVector = new Vec3(leanDirection.x * incrementalOffset, 0, leanDirection.z * incrementalOffset);
             }
 
             double adjustedDistance = getAdjustedLeanDistance(player, leanDirection.scale(currentLeanDirection == LeanDirection.LEFT ? -1 : 1));
@@ -135,17 +136,53 @@ public class LocalPlayerMixin {
                 return;
             }
 
-            if (isAtEdge(player, targetPos)) {
-                ci.cancel();
-                return;
+            // Check for collision only in the direction of leaning
+            if (collidesWithWall(player, movementVector)) {
+                return; // Stop leaning movement but allow other movements
             }
 
+            // Apply the movement if there are no collisions
             if (incrementalOffset > 0) {
-                player.setPos(targetPos.x, targetPos.y, targetPos.z);
+                Vec3 futurePos = player.position().add(movementVector);
+                player.setPos(futurePos.x, futurePos.y, futurePos.z);
                 movementTicks++;
             }
         }
     }
+
+
+    private boolean collidesWithWall(LocalPlayer player, Vec3 movementVector) {
+        Level level = player.level();
+        AABB boundingBox = player.getBoundingBox().expandTowards(movementVector);
+        Vec3[] checkDirections = {
+                new Vec3(1, 0, 0), new Vec3(-1, 0, 0), // Check along the x-axis
+                new Vec3(0, 0, 1), new Vec3(0, 0, -1)  // Check along the z-axis
+        };
+
+        for (Vec3 direction : checkDirections) {
+            AABB checkBox = boundingBox.expandTowards(direction.scale(WALL_MARGIN)); // Expand towards each direction
+
+            for (BlockPos blockPos : BlockPos.betweenClosed(
+                    new BlockPos(
+                            (int) Math.floor(checkBox.minX),
+                            (int) Math.floor(checkBox.minY),
+                            (int) Math.floor(checkBox.minZ)
+                    ),
+                    new BlockPos(
+                            (int) Math.floor(checkBox.maxX),
+                            (int) Math.floor(checkBox.maxY),
+                            (int) Math.floor(checkBox.maxZ)
+                    ))) {
+                BlockState state = level.getBlockState(blockPos);
+                if (!state.isAir()) { // Collision detected
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+
 
     private void handleReturnMovement(LocalPlayer player, CallbackInfo ci, Vec3 leanDirection, double maxLeanDistance) {
         if (movementTicks > 0) {
