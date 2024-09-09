@@ -18,19 +18,22 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 @Mixin(LocalPlayer.class)
 public class LocalPlayerMixin {
     private boolean isLeaning = false;
-    private static final double TOTAL_OFFSET = 0.5; // Total offset to lean for Q and E
-    private static final int TICKS_TO_MOVE = 4; // Ticks to move for Q and E
+    private static final double TOTAL_OFFSET = 0.3; // Total offset to lean for Q and E
+    private static final int TICKS_TO_MOVE = 5; // Ticks to move for Q and E
     private static final double ALT_TOTAL_OFFSET = 0.2; // Total offset to lean for left alt + A/D
     private static final int ALT_TICKS_TO_MOVE = 5; // Ticks to move for left alt + A/D
     private static final double MAX_LEAN_DISTANCE = 0.7; // Maximum distance the player can lean
-    private static final double EDGE_MARGIN = 0.5; // Edge detection margin
+    private static final double EDGE_MARGIN = 0.01; // Base edge margin
+    private static final double OVERHANG_ALLOWANCE = 0.05; // Allowance for player to overhang
     private static final double WALL_MARGIN = 0.03; // Margin to stop before hitting the wall
     private int movementTicks = 0;
     private LeanDirection currentLeanDirection = LeanDirection.NONE;
     private static final float MAX_LEAN_ANGLE = 35.0f; // Maximum lean angle
     private Vec3 initialPosition = null; // Track initial position when left alt is pressed
     private boolean returningToPosition = false; // Track if the player is returning to the initial position
-    private int wallDetectionCooldown = 0; // Cooldown timer for wall detection
+    private boolean wallDetectedWhileLeaning = false; // Track if wall detected while leaning
+    private boolean wallDetectionEnabled = true; // Control to enable/disable wall detection
+    private boolean justHitWall = false; // Control to disable further movement canceling after wall hit
 
     @Inject(method = "move", at = @At("HEAD"), cancellable = true)
     private void leaningtower$move(MoverType pType, Vec3 pPos, CallbackInfo ci) {
@@ -38,46 +41,41 @@ public class LocalPlayerMixin {
             LocalPlayer player = (LocalPlayer) (Object) this;
             Level level = player.level();
             boolean isOnGround = player.onGround();
+            boolean isJumping = player.input.jumping; // Check if the player is attempting to jump
 
-            // Handle wall detection cooldown
-            if (wallDetectionCooldown > 0) {
-                wallDetectionCooldown--;
-            }
-
-            // Prevent leaning if the player is not on the ground
             if (!isOnGround) {
-                resetLeaningState();
+                resetLeaningState(); // Reset leaning if the player is in the air
                 return;
             }
 
-            // Calculate the perpendicular direction to the player's facing direction
+            if (isJumping) {
+                resetLeaningState(); // Allow jump and reset leaning state
+                return;
+            }
+
             Vec3 leanDirection = getPerpendicularDirection(player);
 
-            // Check for directional override: disable wall detection if moving away
             boolean overrideWallStop = (currentLeanDirection == LeanDirection.LEFT && player.input.left) ||
                     (currentLeanDirection == LeanDirection.RIGHT && player.input.right);
 
-            // Adjust the max lean distance based on wall detection
             double maxLeanDistance = MAX_LEAN_DISTANCE;
-            if (ClientLeaningData.leanDirection == LeanDirection.LEFT && !overrideWallStop && wallDetectionCooldown == 0) {
+            if (ClientLeaningData.leanDirection == LeanDirection.LEFT && !overrideWallStop && wallDetectionEnabled) {
                 maxLeanDistance = getAdjustedLeanDistance(player, leanDirection.scale(-1));
-            } else if (ClientLeaningData.leanDirection == LeanDirection.RIGHT && !overrideWallStop && wallDetectionCooldown == 0) {
+            } else if (ClientLeaningData.leanDirection == LeanDirection.RIGHT && !overrideWallStop && wallDetectionEnabled) {
                 maxLeanDistance = getAdjustedLeanDistance(player, leanDirection);
             }
 
-            // Handle leaning with Q and E keys
             if (ClientLeaningData.leanDirection != LeanDirection.NONE && !LeaningTowerKeyMappings.leftAlt.isDown()) {
                 handleLeanMovement(player, ci, leanDirection, maxLeanDistance);
             } else if (isLeaning && !returningToPosition) {
                 handleReturnMovement(player, ci, leanDirection, maxLeanDistance);
             }
 
-            // Handle free-lean with Alt + A/D keys
             if (LeaningTowerKeyMappings.leftAlt.isDown()) {
                 if (initialPosition == null) {
-                    initialPosition = player.position(); // Store initial position when Alt is first pressed
+                    initialPosition = player.position();
                 }
-                ci.cancel(); // Cancel normal movement when in free-lean mode
+                ci.cancel();
                 handleFreeLeanMovement(player, ci, leanDirection, maxLeanDistance);
             }
 
@@ -90,17 +88,17 @@ public class LocalPlayerMixin {
                 handleReturnToInitialPosition(player, ci);
             }
 
-            // Only apply edge detection when leaning
+            // Adjusted edge detection logic
             if (isLeaning && !returningToPosition && isOnGround) {
                 pPos = maybeBackOffFromEdge(player, pPos);
                 Vec3 futurePos = player.position().add(pPos);
-                if (!isBlockBelow(player, futurePos) && !isFloatingBlock(level, futurePos)) {
+
+                if (!isGroundDirectlyBelowOrStep(player, futurePos, EDGE_MARGIN)) {
                     ci.cancel();
                     return;
                 }
             }
 
-            // Additional edge detection for forward and backward movement while leaning
             if (ClientLeaningData.leanDirection != LeanDirection.NONE) {
                 pPos = maybeBackOffFromEdge(player, pPos);
                 if (pPos.equals(Vec3.ZERO)) {
@@ -111,17 +109,15 @@ public class LocalPlayerMixin {
     }
 
     private void handleLeanMovement(LocalPlayer player, CallbackInfo ci, Vec3 leanDirection, double maxLeanDistance) {
-        // Check if the player is on the edge of a block before applying lean movement
-        if (!isBlockBelow(player, player.position())) {
-            return; // Stop leaning if on the edge
-        }
-
         if (!isLeaning || currentLeanDirection != ClientLeaningData.leanDirection) {
             isLeaning = true;
             movementTicks = 0;
             currentLeanDirection = ClientLeaningData.leanDirection;
-            wallDetectionCooldown = 20; // Set cooldown (e.g., 1 second at 20 ticks per second)
+            wallDetectedWhileLeaning = false;
+            wallDetectionEnabled = true; // Enable wall detection at the start of leaning
+            justHitWall = false; // Reset the flag when leaning starts
         }
+
         if (movementTicks < TICKS_TO_MOVE) {
             double incrementalOffset = Math.min(TOTAL_OFFSET / TICKS_TO_MOVE, maxLeanDistance);
             Vec3 targetPos = player.position();
@@ -131,13 +127,19 @@ public class LocalPlayerMixin {
                 targetPos = targetPos.add(leanDirection.x * incrementalOffset, 0, leanDirection.z * incrementalOffset);
             }
 
-            // Adjust the player's position to avoid leaning into walls
             double adjustedDistance = getAdjustedLeanDistance(player, leanDirection.scale(currentLeanDirection == LeanDirection.LEFT ? -1 : 1));
             if (incrementalOffset > adjustedDistance) {
-                incrementalOffset = adjustedDistance;
+                wallDetectedWhileLeaning = true;
+                wallDetectionEnabled = false; // Disable wall detection after the initial wall hit
+                justHitWall = true; // Mark that we just hit the wall
+                return;
             }
 
-            // Apply the adjusted position if we have any distance left
+            if (isAtEdge(player, targetPos)) {
+                ci.cancel();
+                return;
+            }
+
             if (incrementalOffset > 0) {
                 player.setPos(targetPos.x, targetPos.y, targetPos.z);
                 movementTicks++;
@@ -155,13 +157,22 @@ public class LocalPlayerMixin {
                 targetPos = targetPos.add(-leanDirection.x * incrementalOffset, 0, -leanDirection.z * incrementalOffset);
             }
 
-            // Adjust the player's position to avoid leaning into walls
             double adjustedDistance = getAdjustedLeanDistance(player, leanDirection.scale(currentLeanDirection == LeanDirection.LEFT ? -1 : 1));
             if (incrementalOffset > adjustedDistance) {
-                incrementalOffset = adjustedDistance;
+                if (!justHitWall) {
+                    wallDetectedWhileLeaning = true;
+                    wallDetectionEnabled = false;
+                    return;
+                } else {
+                    justHitWall = false;
+                }
             }
 
-            // Apply the adjusted position if we have any distance left
+            if (isAtEdge(player, targetPos)) {
+                ci.cancel();
+                return;
+            }
+
             if (incrementalOffset > 0) {
                 player.setPos(targetPos.x, targetPos.y, targetPos.z);
                 movementTicks--;
@@ -173,11 +184,6 @@ public class LocalPlayerMixin {
 
     private void handleFreeLeanMovement(LocalPlayer player, CallbackInfo ci, Vec3 leanDirection, double maxLeanDistance) {
         if (LeaningTowerKeyMappings.incrementLeft.isDown() || LeaningTowerKeyMappings.incrementRight.isDown()) {
-            // Check if the player is on the edge of a block before applying free lean movement
-            if (!isBlockBelow(player, player.position())) {
-                return; // Stop leaning if on the edge
-            }
-
             double currentLeanOffset = calculateLeanOffset(player, ClientLeaningData.getIncrementalLeanAngle());
             Vec3 targetPos = player.position();
 
@@ -188,8 +194,11 @@ public class LocalPlayerMixin {
                     ClientLeaningData.targetLeanAngle -= ALT_TOTAL_OFFSET / ALT_TICKS_TO_MOVE;
 
                     double adjustedDistance = getAdjustedLeanDistance(player, leanDirection.scale(-1));
-                    if (currentLeanOffset > adjustedDistance) {
-                        return; // Stop movement if a wall is detected
+                    if (currentLeanOffset > adjustedDistance && wallDetectionEnabled) {
+                        wallDetectedWhileLeaning = true;
+                        wallDetectionEnabled = false;
+                        justHitWall = true;
+                        return;
                     }
                 } else {
                     return;
@@ -201,19 +210,27 @@ public class LocalPlayerMixin {
                     ClientLeaningData.targetLeanAngle += ALT_TOTAL_OFFSET / ALT_TICKS_TO_MOVE;
 
                     double adjustedDistance = getAdjustedLeanDistance(player, leanDirection);
-                    if (currentLeanOffset > adjustedDistance) {
-                        return; // Stop movement if a wall is detected
+                    if (currentLeanOffset > adjustedDistance && wallDetectionEnabled) {
+                        wallDetectedWhileLeaning = true;
+                        wallDetectionEnabled = false;
+                        justHitWall = true;
+                        return;
                     }
                 } else {
                     return;
                 }
             }
 
+            if (isAtEdge(player, targetPos)) {
+                ci.cancel();
+                return;
+            }
+
             if (initialPosition != null && initialPosition.distanceTo(targetPos) > maxLeanDistance) {
                 return;
             }
 
-            if (!isBlockBelow(player, targetPos)) {
+            if (!isGroundDirectlyBelowOrStep(player, targetPos, EDGE_MARGIN)) {
                 return;
             } else {
                 player.setPos(targetPos.x, targetPos.y, targetPos.z);
@@ -239,6 +256,9 @@ public class LocalPlayerMixin {
         initialPosition = null;
         ClientLeaningData.leanDirection = LeanDirection.NONE;
         ClientLeaningData.targetLeanAngle = 0;
+        wallDetectedWhileLeaning = false;
+        wallDetectionEnabled = true; // Re-enable wall detection when leaning is reset
+        justHitWall = false; // Reset the wall hit flag
         movementTicks = 0;
     }
 
@@ -253,41 +273,35 @@ public class LocalPlayerMixin {
         return maxOffset * factor;
     }
 
-    private boolean isBlockBelow(LocalPlayer player, Vec3 position) {
+    private boolean isAtEdge(LocalPlayer player, Vec3 position) {
+        return !isGroundDirectlyBelowOrStep(player, position, EDGE_MARGIN + OVERHANG_ALLOWANCE);
+    }
+
+    private boolean isGroundDirectlyBelowOrStep(LocalPlayer player, Vec3 position, double margin) {
         Level level = player.level();
-        double yOffset = -0.1; // Check slightly below the player's feet
+        BlockPos currentPos = new BlockPos(
+                (int) Math.floor(position.x),
+                (int) Math.floor(position.y - 0.1), // Slightly below the player's feet
+                (int) Math.floor(position.z)
+        );
 
-        // Define multiple check points under the player's feet
-        Vec3[] checkPoints = {
-                new Vec3(position.x, position.y + yOffset, position.z),
-                new Vec3(position.x + 0.3, position.y + yOffset, position.z),
-                new Vec3(position.x - 0.3, position.y + yOffset, position.z),
-                new Vec3(position.x, position.y + yOffset, position.z + 0.3),
-                new Vec3(position.x, position.y + yOffset, position.z - 0.3)
-        };
-
-        for (Vec3 checkPoint : checkPoints) {
-            BlockPos blockPos = new BlockPos(
-                    (int) Math.floor(checkPoint.x),
-                    (int) Math.floor(position.y - 1),
-                    (int) Math.floor(checkPoint.z)
-            );
-            BlockState stateBelow = level.getBlockState(blockPos);
-
-            if (!stateBelow.isAir()) {
-                return true; // If any point is supported, it's safe to move
-            }
+        // Check for ground directly below
+        BlockState stateBelow = level.getBlockState(currentPos);
+        if (!stateBelow.isAir()) {
+            return true;
         }
 
-        return false; // No solid ground found at the required positions
+        // Check for step-down blocks just slightly below
+        BlockPos stepPos = currentPos.below();
+        BlockState stepState = level.getBlockState(stepPos);
+        return !stepState.isAir();
     }
 
     private double getAdjustedLeanDistance(LocalPlayer player, Vec3 leanDirection) {
         Level level = player.level();
         AABB boundingBox = player.getBoundingBox();
-
         Vec3 normalizedLeanDirection = leanDirection.normalize();
-        double[] heights = {0.0, player.getEyeHeight() / 2.0, player.getEyeHeight()}; // Feet, chest, head heights
+        double[] heights = {0.0, player.getEyeHeight() / 2.0, player.getEyeHeight()}; // Check at multiple heights to detect collisions.
 
         for (double distance = WALL_MARGIN; distance <= MAX_LEAN_DISTANCE; distance += WALL_MARGIN) {
             AABB expandedBox = boundingBox.expandTowards(normalizedLeanDirection.scale(distance));
@@ -352,7 +366,8 @@ public class LocalPlayerMixin {
             }
 
             if (collides) {
-                return Math.max(0, distance - WALL_MARGIN);
+                // Allow a further increased overhang beyond the edge
+                return Math.max(0, distance - WALL_MARGIN + OVERHANG_ALLOWANCE);
             }
         }
 
@@ -372,22 +387,15 @@ public class LocalPlayerMixin {
             BlockPos futureBlockPos = new BlockPos((int) Math.floor(futurePos.x), (int) Math.floor(futurePos.y - 1), (int) Math.floor(futurePos.z));
             BlockState stateBelow = level.getBlockState(futureBlockPos);
 
-            // Adjust edge detection logic to allow walking onto floating blocks
             if (stateBelow.isAir()) {
                 BlockPos adjacentBlockPos = futureBlockPos.below();
                 BlockState adjacentStateBelow = level.getBlockState(adjacentBlockPos);
                 if (adjacentStateBelow.isAir()) {
-                    return Vec3.ZERO; // Stop movement if there's no support below the floating block
+                    return Vec3.ZERO;
                 }
             }
         }
 
         return vec;
-    }
-
-    private boolean isFloatingBlock(Level level, Vec3 position) {
-        BlockPos blockPos = new BlockPos((int) Math.floor(position.x), (int) Math.floor(position.y - 1), (int) Math.floor(position.z));
-        BlockState stateBelow = level.getBlockState(blockPos);
-        return stateBelow.isAir();
     }
 }
