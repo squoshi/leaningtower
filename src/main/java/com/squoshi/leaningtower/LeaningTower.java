@@ -20,6 +20,14 @@ public class LeaningTower {
     public static final String MODID = "leaningtower";
     public static final Logger LOGGER = LogUtils.getLogger();
 
+    // Define ResourceLocation for animations
+    public static final ResourceLocation LEAN_LEFT_ANIMATION = new ResourceLocation(MODID, "animations/lean_left.json");
+    public static final ResourceLocation LEAN_RIGHT_ANIMATION = new ResourceLocation(MODID, "animations/lean_right.json");
+
+    // Define a ModifierLayer that will hold animations
+    public static final ModifierLayer<IAnimation> animationLayer = new ModifierLayer<>();
+
+
     public LeaningTower() {
         // Register mod event listeners
         var modEventBus = FMLJavaModLoadingContext.get().getModEventBus();
