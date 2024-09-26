@@ -1,9 +1,23 @@
 package com.squoshi.leaningtower.client;
 
+import com.mojang.logging.LogUtils;
 import com.squoshi.leaningtower.LeanDirection;
+import com.squoshi.leaningtower.LeaningTower;
+import dev.kosmx.playerAnim.api.layered.IAnimation;
+import dev.kosmx.playerAnim.api.layered.KeyframeAnimationPlayer;
+import dev.kosmx.playerAnim.api.layered.ModifierLayer;
+import dev.kosmx.playerAnim.api.layered.modifier.MirrorModifier;
+import dev.kosmx.playerAnim.core.data.KeyframeAnimation;
+import dev.kosmx.playerAnim.minecraftApi.PlayerAnimationAccess;
+import dev.kosmx.playerAnim.minecraftApi.PlayerAnimationRegistry;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.player.AbstractClientPlayer;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.entity.player.Player;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.api.distmarker.OnlyIn;
 
+@SuppressWarnings("unchecked")
 @OnlyIn(Dist.CLIENT)
 public class ClientLeaningData {
     public static LeanDirection leanDirection = LeanDirection.NONE;
@@ -48,8 +62,14 @@ public class ClientLeaningData {
     public static void tick(float deltaTime) {
         if (ClientLeaningData.leanDirection != LeanDirection.NONE) {
             ClientLeaningData.leanTickDelta++;
+            LogUtils.getLogger().info("{}", leanTickDelta);
+            if (leanTickDelta == 1)
+                playAnim("lean_left");
+
         } else if (ClientLeaningData.isLeaning) {
+//            stopLeaning();
             ClientLeaningData.stopLeanTickDelta++;
+            /*if (stopLeanTickDelta == 1) */stopAnim();
         }
         smoothUpdate(deltaTime); // Update current angle smoothly towards the target angle
     }
@@ -74,5 +94,22 @@ public class ClientLeaningData {
         leanTickDelta = 0;
         stopLeanTickDelta = 0;
         targetLeanAngle = 0; // Ensure the target angle is set to zero before smoothing to center
+    }
+
+    private static void playAnim(String name) {
+        Player player = Minecraft.getInstance().player;;
+        var animation = (ModifierLayer<IAnimation>) PlayerAnimationAccess.getPlayerAssociatedData((AbstractClientPlayer) player).get(new ResourceLocation(LeaningTower.MODID, "animation"));
+        if (animation == null) return;
+
+        animation.setAnimation(new KeyframeAnimationPlayer(PlayerAnimationRegistry.getAnimation(new ResourceLocation(LeaningTower.MODID, name))));
+    }
+
+    private static void stopAnim() {
+        Player player = Minecraft.getInstance().player;;
+        var animation = (ModifierLayer<IAnimation>) PlayerAnimationAccess.getPlayerAssociatedData((AbstractClientPlayer) player).get(new ResourceLocation(LeaningTower.MODID, "animation"));
+        if (animation == null) return;
+
+        ((KeyframeAnimationPlayer)animation.getAnimation()).stop();
+
     }
 }

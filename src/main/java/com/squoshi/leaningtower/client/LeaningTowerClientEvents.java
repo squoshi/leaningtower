@@ -1,10 +1,19 @@
 package com.squoshi.leaningtower.client;
 
 import com.squoshi.leaningtower.LeanDirection;
+import com.squoshi.leaningtower.LeaningTower;
 import com.squoshi.leaningtower.config.LeaningTowerConfig;
+import dev.kosmx.playerAnim.api.layered.IAnimation;
+import dev.kosmx.playerAnim.api.layered.KeyframeAnimationPlayer;
+import dev.kosmx.playerAnim.api.layered.ModifierLayer;
+import dev.kosmx.playerAnim.minecraftApi.PlayerAnimationAccess;
+import dev.kosmx.playerAnim.minecraftApi.PlayerAnimationRegistry;
 import net.minecraft.client.CameraType;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.player.AbstractClientPlayer;
 import net.minecraft.client.player.LocalPlayer;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.entity.player.Player;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.api.distmarker.OnlyIn;
 import net.minecraftforge.client.event.ViewportEvent;
@@ -13,7 +22,7 @@ import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-
+@SuppressWarnings("unchecked")
 @OnlyIn(Dist.CLIENT)
 @Mod.EventBusSubscriber(modid = "leaningtower", value = Dist.CLIENT, bus = Mod.EventBusSubscriber.Bus.FORGE)
 public class LeaningTowerClientEvents {
@@ -89,7 +98,9 @@ public class LeaningTowerClientEvents {
 
         // Stop leaning if sprinting or jumping
         LocalPlayer player = Minecraft.getInstance().player;
-        if (player != null && (player.isSprinting() || player.input.jumping)) {
+
+        //TEMP CHECK ADDED BY OMBRE TO STOP LEANING
+        if (player != null && (player.isSprinting() || player.input.jumping) || ClientLeaningData.stopLeanTickDelta > 20) {
             ClientLeaningData.stopLeaning();
         }
     }
