@@ -43,6 +43,11 @@ public class LocalPlayerMixin {
             boolean isOnGround = player.onGround();
             boolean isJumping = player.input.jumping; // Check if the player is attempting to jump
 
+            // Sync body rotation with head while leaning
+            if (ClientLeaningData.leanDirection != LeanDirection.NONE) {
+                player.yBodyRot = player.yHeadRot; // Make body follow the head
+            }
+
             if (!isOnGround) {
                 resetLeaningState(); // Reset leaning if the player is in the air
                 return;

@@ -3,17 +3,9 @@ package com.squoshi.leaningtower.client;
 import com.squoshi.leaningtower.LeanDirection;
 import com.squoshi.leaningtower.LeaningTower;
 import com.squoshi.leaningtower.config.LeaningTowerConfig;
-import dev.kosmx.playerAnim.api.layered.IAnimation;
-import dev.kosmx.playerAnim.api.layered.KeyframeAnimationPlayer;
-import dev.kosmx.playerAnim.api.layered.ModifierLayer;
-import dev.kosmx.playerAnim.minecraftApi.PlayerAnimationAccess;
-import dev.kosmx.playerAnim.minecraftApi.PlayerAnimationRegistry;
 import net.minecraft.client.CameraType;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.player.AbstractClientPlayer;
 import net.minecraft.client.player.LocalPlayer;
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.world.entity.player.Player;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.api.distmarker.OnlyIn;
 import net.minecraftforge.client.event.ViewportEvent;
@@ -22,6 +14,7 @@ import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+
 @SuppressWarnings("unchecked")
 @OnlyIn(Dist.CLIENT)
 @Mod.EventBusSubscriber(modid = "leaningtower", value = Dist.CLIENT, bus = Mod.EventBusSubscriber.Bus.FORGE)
@@ -32,6 +25,10 @@ public class LeaningTowerClientEvents {
     private static final int ALT_RESET_DURATION = 60; // Duration for Alt lean reset (slower)
     private static final int NORMAL_RESET_DURATION = 42; // Duration for normal lean reset (faster)
 
+    // Smoothing variables for roll transitions
+    private static float currentRoll = 0.0f; // Current roll value for smoothing
+    private static float targetRoll = 0.0f;  // Target roll value
+
     @SubscribeEvent
     public static void onClientComputeCameraAngles(ViewportEvent.ComputeCameraAngles event) {
         if (Minecraft.getInstance().options.getCameraType() != CameraType.FIRST_PERSON) {
@@ -39,31 +36,19 @@ public class LeaningTowerClientEvents {
         }
 
         LeanDirection leanDirection = ClientLeaningData.leanDirection;
-        LeanDirection prevLeanDirection = ClientLeaningData.prevLeanDirection;
-        int leanTickDelta = ClientLeaningData.leanTickDelta;
-        int stopLeanTickDelta = ClientLeaningData.stopLeanTickDelta;
-        float leanAngle = ClientLeaningData.getIncrementalLeanAngle();
 
         if (ClientLeaningData.isHoldingAlt) {
-            int duration = ALT_RESET_DURATION;
-            float currentRoll = (float) event.getRoll();
-            float angle = (float) easeToFrom(currentRoll, leanAngle, duration, leanTickDelta, event.getPartialTick());
-            event.setRoll(angle);
-        } else if (ClientLeaningData.isLeaning && ClientLeaningData.leanDirection == LeanDirection.NONE) {
-            // Only apply the slow reset when Alt is released
-            float targetAngle = 0.0f;
-            int duration = ALT_RESET_DURATION;
-            float angle = (float) easeToFrom(ClientLeaningData.currentLeanAngle, targetAngle, duration, stopLeanTickDelta, event.getPartialTick());
-            event.setRoll(angle);
-            if (Math.abs(angle) < 0.01) { // If the angle is very close to zero, stop leaning
-                resetLeaningState();
-            }
+            // Apply smooth lean when Alt is held
+            targetRoll = ClientLeaningData.getIncrementalLeanAngle();
+            smoothCameraRoll(event);
+        } else if (ClientLeaningData.leanDirection == LeanDirection.NONE) {
+            // Smooth return to neutral when leaning stops
+            targetRoll = 0.0f;
+            smoothCameraRoll(event);
         } else if (leanDirection != LeanDirection.NONE) {
-            // Regular lean reset
-            int duration = NORMAL_RESET_DURATION;
-            float currentRoll = (float) event.getRoll();
-            float angle = (float) easeToFrom(currentRoll, leanAngle, duration, leanTickDelta, event.getPartialTick());
-            event.setRoll(angle);
+            // Smooth lean direction changes
+            targetRoll = ClientLeaningData.getIncrementalLeanAngle();
+            smoothCameraRoll(event);
         }
     }
 
@@ -88,7 +73,6 @@ public class LeaningTowerClientEvents {
         if (ClientLeaningData.isHoldingAlt) {
             handleAltLean();
         } else if (wasHoldingAlt) {
-            // Reset state after Alt is released
             resetAltLeanState();
         } else if (holdLean) {
             handleHoldLean();
@@ -98,8 +82,6 @@ public class LeaningTowerClientEvents {
 
         // Stop leaning if sprinting or jumping
         LocalPlayer player = Minecraft.getInstance().player;
-
-        //TEMP CHECK ADDED BY OMBRE TO STOP LEANING
         if (player != null && (player.isSprinting() || player.input.jumping) || ClientLeaningData.stopLeanTickDelta > 20) {
             ClientLeaningData.stopLeaning();
         }
@@ -108,17 +90,21 @@ public class LeaningTowerClientEvents {
     private static void handleHoldLean() {
         if (LeaningTowerKeyMappings.leanLeft.isDown() && LeaningTowerKeyMappings.leanRight.isDown()) {
             ClientLeaningData.setLeanDirection(LeanDirection.NONE);
+            targetRoll = 0.0f;
             return;
         }
 
         if (LeaningTowerKeyMappings.leanLeft.isDown()) {
             ClientLeaningData.setLeanDirection(LeanDirection.LEFT);
             ClientLeaningData.targetLeanAngle = -20;
+            targetRoll = -20.0f;
         } else if (LeaningTowerKeyMappings.leanRight.isDown()) {
             ClientLeaningData.setLeanDirection(LeanDirection.RIGHT);
             ClientLeaningData.targetLeanAngle = 20;
+            targetRoll = 20.0f;
         } else {
             ClientLeaningData.setLeanDirection(LeanDirection.NONE);
+            targetRoll = 0.0f; // Return to neutral when neither lean key is pressed
         }
     }
 
@@ -127,9 +113,11 @@ public class LeaningTowerClientEvents {
             if (!leanLeftToggled) {
                 if (ClientLeaningData.leanDirection == LeanDirection.LEFT) {
                     ClientLeaningData.setLeanDirection(LeanDirection.NONE);
+                    targetRoll = 0.0f;
                 } else {
                     ClientLeaningData.setLeanDirection(LeanDirection.LEFT);
                     ClientLeaningData.targetLeanAngle = -20;
+                    targetRoll = -20.0f;
                 }
                 leanLeftToggled = true;
             }
@@ -141,9 +129,11 @@ public class LeaningTowerClientEvents {
             if (!leanRightToggled) {
                 if (ClientLeaningData.leanDirection == LeanDirection.RIGHT) {
                     ClientLeaningData.setLeanDirection(LeanDirection.NONE);
+                    targetRoll = 0.0f;
                 } else {
                     ClientLeaningData.setLeanDirection(LeanDirection.RIGHT);
                     ClientLeaningData.targetLeanAngle = 20;
+                    targetRoll = 20.0f;
                 }
                 leanRightToggled = true;
             }
@@ -166,6 +156,7 @@ public class LeaningTowerClientEvents {
         ClientLeaningData.stopLeanTickDelta = 0;
         ClientLeaningData.leanTickDelta = 0;
         ClientLeaningData.setLeaning(true); // Ensures the easing happens when Alt is released
+        targetRoll = 0.0f;
     }
 
     private static void resetLeaningState() {
@@ -174,13 +165,21 @@ public class LeaningTowerClientEvents {
         ClientLeaningData.setLeaning(false);
         ClientLeaningData.targetLeanAngle = 0;
         ClientLeaningData.currentLeanAngle = 0;
+        currentRoll = 0.0f;
     }
 
-    private static double easeToFrom(double from, double to, int duration, int tickDelta, double partialTicks) {
-        double progress = (tickDelta + partialTicks) / duration;
-        if (progress >= 1.0) {
-            return to;
-        }
-        return from + (to - from) * (Math.pow(progress, 3) * (progress * (6.0 * progress - 15.0) + 10.0));
+    // Smoothing function for the camera roll with proper exponential smoothing and faster transitions
+    private static void smoothCameraRoll(ViewportEvent.ComputeCameraAngles event) {
+        // Get deltaTime using Minecraft's delta time function for consistent FPS-independent updates
+        float deltaTime = Minecraft.getInstance().getDeltaFrameTime();  // Real-world time in seconds between frames
+
+        // Smoothing factor that controls how fast the transitions occur (adjustable)
+        float smoothingFactor = 0.35f;  // Increased to make transitions faster but still smooth
+
+        // Apply exponential smoothing for the camera roll transition to avoid snapping
+        currentRoll += (targetRoll - currentRoll) * smoothingFactor * deltaTime;
+
+        // Apply the smoothed roll to the camera
+        event.setRoll(currentRoll);
     }
 }
