@@ -63,22 +63,6 @@
                 "tick":10,
                 "easing": "EASEINOUTQUAD",
                 "turn": 0,
-                "rightArm":{
-                    "roll":0.0872664600610733
-                }
-            },
-            {
-                "tick":10,
-                "easing": "EASEINOUTQUAD",
-                "turn": 0,
-                "leftArm":{
-                    "roll":-0.0872664600610733
-                }
-            },
-            {
-                "tick":10,
-                "easing": "EASEINOUTQUAD",
-                "turn": 0,
                 "rightLeg":{
                     "roll":0.3490658402442932
                 }
