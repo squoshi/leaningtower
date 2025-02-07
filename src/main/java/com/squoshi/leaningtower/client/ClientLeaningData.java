@@ -50,7 +50,7 @@ public class ClientLeaningData {
     }
 
     public static void incrementLean(LeanDirection direction) {
-        int maxAngle = isHoldingAlt ? 35 : 20; // Max angle is 35 if holding Alt, otherwise 20
+        int maxAngle = isHoldingAlt ? 35 : 25; // Max angle is 35 if holding Alt, otherwise 20
         if (direction == LeanDirection.LEFT) {
             targetLeanAngle = Math.max(targetLeanAngle - 5, -maxAngle);
         } else if (direction == LeanDirection.RIGHT) {

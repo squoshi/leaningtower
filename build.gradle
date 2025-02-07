@@ -126,8 +126,10 @@ dependencies {
 
     annotationProcessor "org.spongepowered:mixin:${mixin_version}:processor"
 
-    implementation fg.deobf("curse.maven:pehkui-319596:5393101")
     implementation fg.deobf("curse.maven:playeranimator-658587:4587214")
+    implementation fg.deobf("curse.maven:timeless-and-classics-zero-1028108:5722050")
+    implementation fg.deobf("curse.maven:oculus-581495:5299671")
+    implementation fg.deobf("curse.maven:embeddium-908741:5681725")
 }
 
 tasks.withType(ProcessResources).configureEach {

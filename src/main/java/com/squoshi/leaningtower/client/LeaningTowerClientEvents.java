@@ -96,12 +96,12 @@ public class LeaningTowerClientEvents {
 
         if (LeaningTowerKeyMappings.leanLeft.isDown()) {
             ClientLeaningData.setLeanDirection(LeanDirection.LEFT);
-            ClientLeaningData.targetLeanAngle = -20;
-            targetRoll = -20.0f;
+            ClientLeaningData.targetLeanAngle = -25;
+            targetRoll = -25.0f;
         } else if (LeaningTowerKeyMappings.leanRight.isDown()) {
             ClientLeaningData.setLeanDirection(LeanDirection.RIGHT);
-            ClientLeaningData.targetLeanAngle = 20;
-            targetRoll = 20.0f;
+            ClientLeaningData.targetLeanAngle = 25;
+            targetRoll = 25.0f;
         } else {
             ClientLeaningData.setLeanDirection(LeanDirection.NONE);
             targetRoll = 0.0f; // Return to neutral when neither lean key is pressed
@@ -116,8 +116,8 @@ public class LeaningTowerClientEvents {
                     targetRoll = 0.0f;
                 } else {
                     ClientLeaningData.setLeanDirection(LeanDirection.LEFT);
-                    ClientLeaningData.targetLeanAngle = -20;
-                    targetRoll = -20.0f;
+                    ClientLeaningData.targetLeanAngle = -25;
+                    targetRoll = -25.0f;
                 }
                 leanLeftToggled = true;
             }
@@ -132,8 +132,8 @@ public class LeaningTowerClientEvents {
                     targetRoll = 0.0f;
                 } else {
                     ClientLeaningData.setLeanDirection(LeanDirection.RIGHT);
-                    ClientLeaningData.targetLeanAngle = 20;
-                    targetRoll = 20.0f;
+                    ClientLeaningData.targetLeanAngle = 25;
+                    targetRoll = 25.0f;
                 }
                 leanRightToggled = true;
             }
