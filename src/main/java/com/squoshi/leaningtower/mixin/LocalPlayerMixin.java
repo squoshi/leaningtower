@@ -114,6 +114,12 @@ public class LocalPlayerMixin {
 
     private Vec3 getMovementVector(LocalPlayer player, double offset) {
         Vec3 lookDirection = getPerpendicularDirection(player);
+
+        // Invert offset for left lean
+        if (currentLeanDirection == LeanDirection.LEFT) {
+            offset = -offset;
+        }
+
         return new Vec3(lookDirection.x * offset, 0, lookDirection.z * offset);
     }
 
