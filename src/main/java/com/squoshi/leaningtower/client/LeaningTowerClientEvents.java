@@ -22,12 +22,11 @@ public class LeaningTowerClientEvents {
     private static final Logger LOGGER = LogManager.getLogger();
     private static boolean leanLeftToggled = false;
     private static boolean leanRightToggled = false;
-    private static final int ALT_RESET_DURATION = 60; // Duration for Alt lean reset (slower)
-    private static final int NORMAL_RESET_DURATION = 42; // Duration for normal lean reset (faster)
+    private static final int ALT_RESET_DURATION = 60;
+    private static final int NORMAL_RESET_DURATION = 42;
 
-    // Smoothing variables for roll transitions
-    private static float currentRoll = 0.0f; // Current roll value for smoothing
-    private static float targetRoll = 0.0f;  // Target roll value
+    private static float currentRoll = 0.0f;
+    private static float targetRoll = 0.0f;
 
     @SubscribeEvent
     public static void onClientComputeCameraAngles(ViewportEvent.ComputeCameraAngles event) {
@@ -38,15 +37,12 @@ public class LeaningTowerClientEvents {
         LeanDirection leanDirection = ClientLeaningData.leanDirection;
 
         if (ClientLeaningData.isHoldingAlt) {
-            // Apply smooth lean when Alt is held
             targetRoll = ClientLeaningData.getIncrementalLeanAngle();
             smoothCameraRoll(event);
-        } else if (ClientLeaningData.leanDirection == LeanDirection.NONE) {
-            // Smooth return to neutral when leaning stops
+        } else if (leanDirection == LeanDirection.NONE) {
             targetRoll = 0.0f;
             smoothCameraRoll(event);
-        } else if (leanDirection != LeanDirection.NONE) {
-            // Smooth lean direction changes
+        } else {
             targetRoll = ClientLeaningData.getIncrementalLeanAngle();
             smoothCameraRoll(event);
         }
@@ -66,6 +62,12 @@ public class LeaningTowerClientEvents {
             return;
         }
 
+        LocalPlayer player = Minecraft.getInstance().player;
+        if (player == null || !player.isAlive()) {
+            resetLeaningState(); // Fix for death crash
+            return;
+        }
+
         boolean holdLean = LeaningTowerConfig.CLIENT.holdLean.get();
         boolean wasHoldingAlt = ClientLeaningData.isHoldingAlt;
         ClientLeaningData.isHoldingAlt = LeaningTowerKeyMappings.leftAlt.isDown();
@@ -80,9 +82,7 @@ public class LeaningTowerClientEvents {
             handleToggleLean();
         }
 
-        // Stop leaning if sprinting or jumping
-        LocalPlayer player = Minecraft.getInstance().player;
-        if (player != null && (player.isSprinting() || player.input.jumping) || ClientLeaningData.stopLeanTickDelta > 20) {
+        if (player.isSprinting() || player.input.jumping || ClientLeaningData.stopLeanTickDelta > 20) {
             ClientLeaningData.stopLeaning();
         }
     }
@@ -104,7 +104,7 @@ public class LeaningTowerClientEvents {
             targetRoll = 25.0f;
         } else {
             ClientLeaningData.setLeanDirection(LeanDirection.NONE);
-            targetRoll = 0.0f; // Return to neutral when neither lean key is pressed
+            targetRoll = 0.0f;
         }
     }
 
@@ -155,7 +155,7 @@ public class LeaningTowerClientEvents {
         ClientLeaningData.targetLeanAngle = 0;
         ClientLeaningData.stopLeanTickDelta = 0;
         ClientLeaningData.leanTickDelta = 0;
-        ClientLeaningData.setLeaning(true); // Ensures the easing happens when Alt is released
+        ClientLeaningData.setLeaning(true);
         targetRoll = 0.0f;
     }
 
@@ -163,23 +163,19 @@ public class LeaningTowerClientEvents {
         ClientLeaningData.leanTickDelta = 0;
         ClientLeaningData.stopLeanTickDelta = 0;
         ClientLeaningData.setLeaning(false);
+        ClientLeaningData.leanDirection = LeanDirection.NONE;
+        ClientLeaningData.prevLeanDirection = LeanDirection.NONE;
         ClientLeaningData.targetLeanAngle = 0;
         ClientLeaningData.currentLeanAngle = 0;
+        targetRoll = 0.0f;
         currentRoll = 0.0f;
     }
 
-    // Smoothing function for the camera roll with proper exponential smoothing and faster transitions
     private static void smoothCameraRoll(ViewportEvent.ComputeCameraAngles event) {
-        // Get deltaTime using Minecraft's delta time function for consistent FPS-independent updates
-        float deltaTime = Minecraft.getInstance().getDeltaFrameTime();  // Real-world time in seconds between frames
+        float deltaTime = Minecraft.getInstance().getDeltaFrameTime();
+        float smoothingFactor = 0.35f;
 
-        // Smoothing factor that controls how fast the transitions occur (adjustable)
-        float smoothingFactor = 0.35f;  // Increased to make transitions faster but still smooth
-
-        // Apply exponential smoothing for the camera roll transition to avoid snapping
         currentRoll += (targetRoll - currentRoll) * smoothingFactor * deltaTime;
-
-        // Apply the smoothed roll to the camera
         event.setRoll(currentRoll);
     }
 }
