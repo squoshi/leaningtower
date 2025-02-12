@@ -22,7 +22,7 @@ public class LocalPlayerMixin {
     // =====================================================
     private boolean isNormalLeaning = false;
     private static final double NORMAL_TOTAL_OFFSET = 0.05;  // Increment per tick for normal lean
-    private static final int NORMAL_TICKS_TO_MOVE = 5;         // Total ticks over which to apply lean
+    private static final int NORMAL_TICKS_TO_MOVE = 5;  // Total ticks over which to apply lean
     private int normalMovementTicks = 0;
     private LeanDirection normalLeanDirection = LeanDirection.NONE;
 
@@ -96,13 +96,13 @@ public class LocalPlayerMixin {
     // =====================================================
     private void handleNormalLean(LocalPlayer player) {
         if (isNormalLeaning && normalLeanDirection != ClientLeaningData.leanDirection) {
-            // Step 1: Smoothly return to center before switching lean direction
+            // Smoothly return to center before switching lean direction
             if (normalMovementTicks > 0) {
                 handleNormalReturn(player);
                 return; // Wait for return to complete before switching
             }
 
-            // Step 2: Now that we've returned, switch to the new lean direction
+
             normalMovementTicks = 0;
             normalLeanDirection = ClientLeaningData.leanDirection;
         }
@@ -115,7 +115,7 @@ public class LocalPlayerMixin {
         }
 
         if (normalMovementTicks < NORMAL_TICKS_TO_MOVE) {
-            // Step 3: Smoothly apply the new lean movement
+            // Smoothly apply the new lean movement
             double incrementalOffset = NORMAL_TOTAL_OFFSET;
             Vec3 movementVector = getNormalMovementVector(player, incrementalOffset);
             player.lerpMotion(movementVector.x, 0, movementVector.z);
