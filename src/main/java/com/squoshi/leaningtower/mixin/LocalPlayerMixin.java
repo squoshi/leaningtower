@@ -95,12 +95,27 @@ public class LocalPlayerMixin {
     // NORMAL LEAN METHODS (for Q/E or similar keys)
     // =====================================================
     private void handleNormalLean(LocalPlayer player) {
+        if (isNormalLeaning && normalLeanDirection != ClientLeaningData.leanDirection) {
+            // Step 1: Smoothly return to center before switching lean direction
+            if (normalMovementTicks > 0) {
+                handleNormalReturn(player);
+                return; // Wait for return to complete before switching
+            }
+
+            // Step 2: Now that we've returned, switch to the new lean direction
+            normalMovementTicks = 0;
+            normalLeanDirection = ClientLeaningData.leanDirection;
+        }
+
         if (!isNormalLeaning || normalLeanDirection != ClientLeaningData.leanDirection) {
+            // Start the new lean
             isNormalLeaning = true;
             normalMovementTicks = 0;
             normalLeanDirection = ClientLeaningData.leanDirection;
         }
+
         if (normalMovementTicks < NORMAL_TICKS_TO_MOVE) {
+            // Step 3: Smoothly apply the new lean movement
             double incrementalOffset = NORMAL_TOTAL_OFFSET;
             Vec3 movementVector = getNormalMovementVector(player, incrementalOffset);
             player.lerpMotion(movementVector.x, 0, movementVector.z);
