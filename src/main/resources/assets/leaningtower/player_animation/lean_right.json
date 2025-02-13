@@ -1,7 +1,7 @@
 {
-    "name": "lean_left",
+    "name": "lean_right",
     "author": "raiiiden",
-    "description": "leans left",
+    "description": "leans right",
     "emote":{
         "isLoop": "true",
         "returnTick": 10,

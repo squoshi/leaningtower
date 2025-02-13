@@ -50,28 +50,28 @@ public class ClientLeaningData {
     }
 
     public static void incrementLean(LeanDirection direction) {
-        int maxAngle = isHoldingAlt ? 35 : 25; // Max angle is 35 if holding Alt, otherwise 20
+        int maxAngle = isHoldingAlt ? 35 : 25;
         if (direction == LeanDirection.LEFT) {
             targetLeanAngle = Math.max(targetLeanAngle - 5, -maxAngle);
         } else if (direction == LeanDirection.RIGHT) {
             targetLeanAngle = Math.min(targetLeanAngle + 5, maxAngle);
         }
-        setLeanDirection(direction); // Ensure lean direction is updated
+        setLeanDirection(direction);
     }
 
     public static void tick(float deltaTime) {
         if (ClientLeaningData.leanDirection != LeanDirection.NONE) {
             ClientLeaningData.leanTickDelta++;
-            LogUtils.getLogger().info("{}", leanTickDelta);
-            if (leanTickDelta == 1)
-                playAnim("lean_left");
+            boolean isLeaningLeft = ClientLeaningData.leanDirection == LeanDirection.LEFT;
 
+            if (leanTickDelta == 1) {
+                playAnim("lean_right", isLeaningLeft); // Mirror right lean for left lean
+            }
         } else if (ClientLeaningData.isLeaning) {
-//            stopLeaning();
             ClientLeaningData.stopLeanTickDelta++;
-            /*if (stopLeanTickDelta == 1) */stopAnim();
+            stopAnim();
         }
-        smoothUpdate(deltaTime); // Update current angle smoothly towards the target angle
+        smoothUpdate(deltaTime);
     }
 
     public static float getIncrementalLeanAngle() {
@@ -79,8 +79,8 @@ public class ClientLeaningData {
     }
 
     private static void smoothUpdate(float deltaTime) {
-        float smoothingFactor = 0.15f; // Increased smoothing factor for a smoother transition
-        float adjustedSmoothing = smoothingFactor * deltaTime; // Adjust by frame time
+        float smoothingFactor = 0.15f;
+        float adjustedSmoothing = smoothingFactor * deltaTime;
 
         if (currentLeanAngle < targetLeanAngle) {
             currentLeanAngle = Math.min(currentLeanAngle + adjustedSmoothing * Math.abs(targetLeanAngle - currentLeanAngle), targetLeanAngle);
@@ -93,23 +93,63 @@ public class ClientLeaningData {
         isLeaning = false;
         leanTickDelta = 0;
         stopLeanTickDelta = 0;
-        targetLeanAngle = 0; // Ensure the target angle is set to zero before smoothing to center
+        targetLeanAngle = 0;
     }
 
-    private static void playAnim(String name) {
-        Player player = Minecraft.getInstance().player;;
-        var animation = (ModifierLayer<IAnimation>) PlayerAnimationAccess.getPlayerAssociatedData((AbstractClientPlayer) player).get(new ResourceLocation(LeaningTower.MODID, "animation"));
-        if (animation == null) return;
+    private static void playAnim(String name, boolean mirror) {
+        Player player = Minecraft.getInstance().player;
+        if (player == null) return;
 
-        animation.setAnimation(new KeyframeAnimationPlayer(PlayerAnimationRegistry.getAnimation(new ResourceLocation(LeaningTower.MODID, name))));
+        var animation = (ModifierLayer<IAnimation>) PlayerAnimationAccess
+                .getPlayerAssociatedData((AbstractClientPlayer) player)
+                .get(new ResourceLocation(LeaningTower.MODID, "animation"));
+
+        if (animation == null) {
+            LogUtils.getLogger().error("Animation layer not found for player!");
+            return;
+        }
+
+        // Retrieve the KeyframeAnimation from the registry
+        KeyframeAnimation keyframeAnim = PlayerAnimationRegistry.getAnimation(new ResourceLocation(LeaningTower.MODID, name));
+
+        if (keyframeAnim == null) {
+            LogUtils.getLogger().error("Animation '{}' not found in registry!", name);
+            return;
+        }
+
+        // Convert KeyframeAnimation to KeyframeAnimationPlayer
+        KeyframeAnimationPlayer animPlayer = new KeyframeAnimationPlayer(keyframeAnim);
+
+        // Create a new ModifierLayer to hold the animation
+        ModifierLayer<IAnimation> animationLayer = new ModifierLayer<>();
+
+        if (mirror) {
+            animationLayer.addModifierBefore(new MirrorModifier(true)); // Apply mirror effect
+        }
+
+        animationLayer.setAnimation(animPlayer);
+        animation.setAnimation(animationLayer);
     }
 
     private static void stopAnim() {
-        Player player = Minecraft.getInstance().player;;
-        var animation = (ModifierLayer<IAnimation>) PlayerAnimationAccess.getPlayerAssociatedData((AbstractClientPlayer) player).get(new ResourceLocation(LeaningTower.MODID, "animation"));
-        if (animation == null) return;
+        Player player = Minecraft.getInstance().player;
+        if (player == null) return;
 
-        ((KeyframeAnimationPlayer)animation.getAnimation()).stop();
+        var animation = (ModifierLayer<IAnimation>) PlayerAnimationAccess
+                .getPlayerAssociatedData((AbstractClientPlayer) player)
+                .get(new ResourceLocation(LeaningTower.MODID, "animation"));
 
+        if (animation == null) {
+            LogUtils.getLogger().error("Animation layer not found for player!");
+            return;
+        }
+
+        // Check if an animation is currently active before stopping
+        IAnimation currentAnimation = animation.getAnimation();
+        if (currentAnimation instanceof KeyframeAnimationPlayer) {
+            ((KeyframeAnimationPlayer) currentAnimation).stop();
+        } else {
+            animation.setAnimation(null); // Clear the animation safely
+        }
     }
 }
