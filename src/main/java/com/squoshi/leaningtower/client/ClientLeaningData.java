@@ -37,8 +37,20 @@ public class ClientLeaningData {
     public static void setLeanDirection(LeanDirection leanDirection) {
         if (ClientLeaningData.leanDirection != leanDirection) {
             ClientLeaningData.transitionAngle = ClientLeaningData.currentLeanAngle;
+
+            // **Stop previous animation before switching**
+            stopAnim();
+
+            // **Play correct animation based on direction**
+            if (leanDirection == LeanDirection.LEFT) {
+                playAnim("lean_right", true); // Mirror the right lean animation
+            } else if (leanDirection == LeanDirection.RIGHT) {
+                playAnim("lean_right", false); // Normal right lean animation
+            }
         }
+
         ClientLeaningData.leanDirection = leanDirection;
+
         if (leanDirection != LeanDirection.NONE) {
             setPrevLeanDirection(leanDirection);
             setLeaning(true);
