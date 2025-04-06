@@ -3,7 +3,10 @@
   "package": "com.squoshi.leaningtower.mixin",
   "compatibilityLevel": "JAVA_17",
   "refmap": "leaningtower.refmap.json",
-  "mixins": [],
+  "mixins": [
+    "PlayerMixin",
+    "EntityAccessor"
+  ],
   "client": [
     "LocalPlayerMixin"
   ],

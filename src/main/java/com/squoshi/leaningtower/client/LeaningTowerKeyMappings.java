@@ -11,7 +11,7 @@ import org.lwjgl.glfw.GLFW;
 import com.squoshi.leaningtower.LeaningTower;
 
 @OnlyIn(Dist.CLIENT)
-@Mod.EventBusSubscriber(bus = Mod.EventBusSubscriber.Bus.MOD)
+@Mod.EventBusSubscriber(modid = LeaningTower.MODID, value = Dist.CLIENT, bus = Mod.EventBusSubscriber.Bus.MOD)
 public class LeaningTowerKeyMappings {
     public static KeyMapping leanLeft = new ToggleKeyMapping("key.leaningtower.lean_left", GLFW.GLFW_KEY_Q, "key.categories.leaningtower", () -> false);
     public static KeyMapping leanRight = new ToggleKeyMapping("key.leaningtower.lean_right", GLFW.GLFW_KEY_E, "key.categories.leaningtower", () -> false);
