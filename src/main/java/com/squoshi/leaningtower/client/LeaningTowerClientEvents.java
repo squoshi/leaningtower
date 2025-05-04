@@ -10,6 +10,7 @@ import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.api.distmarker.OnlyIn;
 import net.minecraftforge.client.event.ViewportEvent;
 import net.minecraftforge.event.TickEvent;
+import net.minecraftforge.eventbus.api.EventPriority;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 import org.apache.logging.log4j.LogManager;
@@ -28,7 +29,7 @@ public class LeaningTowerClientEvents {
     private static float currentRoll = 0.0f;
     private static float targetRoll = 0.0f;
 
-    @SubscribeEvent
+    @SubscribeEvent(priority = EventPriority.HIGHEST)
     public static void onClientComputeCameraAngles(ViewportEvent.ComputeCameraAngles event) {
         if (Minecraft.getInstance().options.getCameraType() != CameraType.FIRST_PERSON) {
             return;
@@ -177,5 +178,8 @@ public class LeaningTowerClientEvents {
 
         currentRoll += (targetRoll - currentRoll) * smoothingFactor * deltaTime;
         event.setRoll(currentRoll);
+    }
+    public static float getFinalRoll() {
+        return currentRoll;
     }
 }

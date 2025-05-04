@@ -128,6 +128,10 @@ dependencies {
 
     implementation fg.deobf("curse.maven:playeranimator-658587:4587214")
     implementation fg.deobf("curse.maven:timeless-and-classics-zero-1028108:5722050")
+    compileOnly fg.deobf("curse.maven:scorched-guns-802940:6003683")
+    compileOnly fg.deobf("curse.maven:geckolib-388172:5675221")
+    compileOnly fg.deobf("curse.maven:framework-549225:5911986")
+    compileOnly fg.deobf("curse.maven:curios-309927:6418456")
 }
 
 tasks.withType(ProcessResources).configureEach {
