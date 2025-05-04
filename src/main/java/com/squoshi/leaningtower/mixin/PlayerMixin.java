@@ -2,7 +2,6 @@ package com.squoshi.leaningtower.mixin;
 
 import com.squoshi.leaningtower.LeanDirection;
 import com.squoshi.leaningtower.server.ServerLeaningData;
-import com.squoshi.leaningtower.mixin.EntityAccessor;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.MoverType;
 import net.minecraft.world.entity.player.Player;
@@ -28,7 +27,7 @@ public class PlayerMixin {
         if (!(player instanceof ServerPlayer serverPlayer)) return;
 
         // Only lean when grounded
-        if (!((EntityAccessor) player).isOnGround()) return;
+        if (!player.onGround()) return;
 
         LeanDirection direction = ServerLeaningData.getDirection(serverPlayer);
         if (direction == LeanDirection.NONE) return;

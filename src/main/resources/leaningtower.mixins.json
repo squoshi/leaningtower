@@ -5,8 +5,7 @@
   "refmap": "leaningtower.refmap.json",
   "mixins": [
     "compat.scguns.GunRenderingHandlerMixin",
-    "PlayerMixin",
-    "EntityAccessor"
+    "PlayerMixin"
   ],
   "client": [
     "LocalPlayerMixin"
